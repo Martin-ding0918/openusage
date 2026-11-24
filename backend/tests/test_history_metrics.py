@@ -43,6 +43,25 @@ class HistoryMetricsTests(unittest.TestCase):
         self.assertEqual((m["field:Load"]["value"], m["field:Load"]["unit"]), (25.0, "%"))
         self.assertEqual(m["field:Quota"]["value"], 70.0)
 
+    def test_custom_path_survives_label_and_symbol_changes(self):
+        def metrics(label, symbol):
+            return extract_history_metrics("custom", {"fields": [{
+                "path": "data.quota", "label": label, "symbol": symbol,
+                "type": "balance", "value": 42, "history": True,
+            }]})
+        before = metrics("原余额", "")
+        after = metrics("余额", "$")
+        self.assertEqual(set(before), {"field:data.quota"})
+        self.assertEqual(set(before), set(after))
+        self.assertEqual(after["field:data.quota"]["label"], "余额")
+        self.assertEqual(after["field:data.quota"]["unit"], "$")
+
+    def test_status_does_not_create_history_even_if_tracked(self):
+        self.assertEqual(extract_history_metrics("custom", {"fields": [{
+            "path": "data.status", "label": "状态", "type": "status",
+            "value": 1, "history": True,
+        }]}), {})
+
 
 if __name__ == "__main__":
     unittest.main()

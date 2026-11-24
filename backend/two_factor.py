@@ -37,10 +37,10 @@ def digest(value: str) -> str:
 def check_limit(row: dict):
     locked_until = row.get("locked_until")
     if locked_until and datetime.fromisoformat(locked_until) > now():
-        raise HTTPException(429, "Too many attempts. Try again in five minutes.")
+        raise HTTPException(429, "尝试次数过多，请在五分钟后重试。")
 
 
-async def fail(user_id: int, row: dict, detail: str = "Invalid or already used code"):
+async def fail(user_id: int, row: dict, detail: str = "验证码无效或已使用"):
     failures = row["failures"] + 1
     locked_until = (now() + timedelta(minutes=5)).isoformat() if failures >= 5 else None
     await db.record_2fa_failure(user_id, failures, locked_until)

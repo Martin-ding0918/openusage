@@ -91,7 +91,7 @@ def extract_usage_percentages(service_type: str, data: dict) -> dict:
     return out
 
 
-_PERCENT_LABELS = {"session": "Session", "weekly": "Weekly", "monthly": "Monthly"}
+_PERCENT_LABELS = {"session": "会话额度", "weekly": "每周额度", "monthly": "每月额度"}
 
 
 def extract_history_metrics(service_type: str, data: dict) -> dict:
@@ -109,7 +109,7 @@ def extract_history_metrics(service_type: str, data: dict) -> dict:
         try:
             if info is not None:
                 out["balance"] = {
-                    "label": "Balance",
+                    "label": "余额",
                     "unit": info.get("currency") or "USD",
                     "value": float(info.get("total_balance")),
                 }
@@ -117,24 +117,26 @@ def extract_history_metrics(service_type: str, data: dict) -> dict:
             pass
 
     elif service_type == "mistral":
-        for key, label in (("vibe", "Vibe usage"), ("api", "Studio usage")):
+        for key, label in (("vibe", "Vibe 用量"), ("api", "Studio 用量")):
             block = data.get(key) or {}
             pct = _num(block.get("percent_used"))
             if pct is not None:
                 out[f"{key}_pct"] = {"label": label, "unit": "%", "value": pct}
-            value = _num(block.get("budget"))
-            if value is not None:
-                out[f"{key}_budget"] = {
-                    "label": f"{label} budget",
+            # The budget is a constant ceiling, so chart the amount used instead:
+            # that is the figure that actually moves (and the one the card shows).
+            budget = _num(block.get("budget"))
+            if budget is not None and pct is not None:
+                out[f"{key}_used"] = {
+                    "label": f"{label}消费",
                     "unit": block.get("currency") or "EUR",
-                    "value": value,
+                    "value": round(budget * pct / 100, 2),
                 }
 
     elif service_type == "custom":
         out.update(_custom_history_metrics(data))
 
     elif service_type == "opencode":
-        for key, label in (("balance", "Zen credit balance"), ("cost_month", "Spend this month")):
+        for key, label in (("balance", "Zen 余额"), ("cost_month", "本月消费")):
             value = _num(data.get(key))
             if value is not None:
                 out[key] = {"label": label, "unit": "USD", "value": value}
@@ -143,10 +145,10 @@ def extract_history_metrics(service_type: str, data: dict) -> dict:
         currency = (data.get("currency") or "usd").upper()
         spend = _num(data.get("spend_this_month"))
         if spend is not None:
-            out["spend"] = {"label": "Spend this month", "unit": currency, "value": spend}
+            out["spend"] = {"label": "本月消费", "unit": currency, "value": spend}
         balance = _num((data.get("credit_balance") or {}).get("total_available"))
         if balance is not None:
-            out["balance"] = {"label": "Credit balance", "unit": currency, "value": balance}
+            out["balance"] = {"label": "余额", "unit": currency, "value": balance}
 
     return out
 
@@ -195,5 +197,6 @@ def _custom_history_metrics(data: dict) -> dict:
             unit = (f.get("symbol") or "").strip()
         elif ftype != "number":
             continue
-        out[f"field:{label}"] = {"label": label, "unit": unit, "value": value}
+        identity = (f.get("path") or "").strip() or label
+        out[f"field:{identity}"] = {"label": label, "unit": unit, "value": value}
     return out

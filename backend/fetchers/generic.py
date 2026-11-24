@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import re
 
 import httpx
@@ -77,7 +78,7 @@ async def _execute_request(config: dict) -> dict:
     {"payload": <parsed JSON>} on success or {"error": <message>} on failure."""
     url = (config.get("generic_url") or "").strip()
     if not url:
-        return {"error": "Not configured"}
+        return {"error": "尚未配置"}
 
     method = (config.get("generic_method") or "POST").upper()
     api_key = config.get("generic_api_key") or ""
@@ -93,7 +94,7 @@ async def _execute_request(config: dict) -> dict:
         try:
             extra_headers = json.loads(_apply_template(headers_raw, api_key))
         except json.JSONDecodeError as e:
-            return {"error": f"Invalid headers JSON: {e}"}
+            return {"error": f"请求头 JSON 无效： {e}"}
         if isinstance(extra_headers, dict):
             headers.update({str(k): str(v) for k, v in extra_headers.items()})
 
@@ -102,7 +103,7 @@ async def _execute_request(config: dict) -> dict:
         try:
             body = json.loads(_apply_template(body_raw, api_key))
         except json.JSONDecodeError as e:
-            return {"error": f"Invalid body JSON: {e}"}
+            return {"error": f"请求体 JSON 无效： {e}"}
 
     timeout_config = httpx.Timeout(10.0, connect=5.0)
     try:
@@ -116,7 +117,7 @@ async def _execute_request(config: dict) -> dict:
     except httpx.HTTPStatusError as e:
         return {"error": f"HTTP {e.response.status_code}"}
     except json.JSONDecodeError:
-        return {"error": "Response was not valid JSON"}
+        return {"error": "响应不是有效的 JSON"}
     except Exception as e:
         logger.warning("Generic fetch exception: %s", e)
         return {"error": str(e)}
@@ -127,7 +128,7 @@ async def _execute_request(config: dict) -> dict:
             detail = None
             if isinstance(payload, dict):
                 detail = payload.get("errorDescription") or payload.get("error") or payload.get("message")
-            msg = f"API reported failure ({success_path} = {actual!r}, expected {success_value!r})"
+            msg = f"API 返回失败（{success_path} = {actual!r}，期望 {success_value!r}）"
             if detail:
                 msg += f": {detail}"
             return {"error": msg}
@@ -145,11 +146,25 @@ def _extract_fields(payload, fields: list) -> list:
         field_type = f.get("type") or "text"
         extracted = {
             "label": label,
+            "path": path,
             "type": field_type,
             "symbol": f.get("symbol") or "",
             "value": _resolve_path(payload, path),
             "history": bool(f.get("history")),
         }
+        divisor = f.get("divisor", 1)
+        if isinstance(divisor, bool) or not isinstance(divisor, (int, float)) or not math.isfinite(divisor) or divisor <= 0:
+            raise ValueError("字段除数必须是有限的正数")
+        if field_type in {"number", "currency", "balance"} and divisor != 1:
+            value = extracted["value"]
+            if value is not None and not isinstance(value, bool):
+                try:
+                    numeric = float(value)
+                except (TypeError, ValueError):
+                    pass
+                else:
+                    if math.isfinite(numeric):
+                        extracted["value"] = numeric / divisor
         if field_type in PROGRESS_FIELD_TYPES:
             total_path = (f.get("total_path") or "").strip()
             extracted["total"] = _resolve_path(payload, total_path) if total_path else None
@@ -161,13 +176,16 @@ async def fetch_generic(config: dict = None) -> dict:
     if config is None:
         config = {}
     if not (config.get("generic_url") or "").strip():
-        return {"configured": False, "error": "Not configured"}
+        return {"configured": False, "error": "尚未配置"}
 
     result = await _execute_request(config)
     if "error" in result:
         return {"configured": True, "status": "error", "error": result["error"]}
 
-    fields = _extract_fields(result["payload"], config.get("generic_fields") or [])
+    try:
+        fields = _extract_fields(result["payload"], config.get("generic_fields") or [])
+    except ValueError as exc:
+        return {"configured": True, "status": "error", "error": str(exc)}
     return {"configured": True, "status": "ok", "data": {"fields": fields}}
 
 

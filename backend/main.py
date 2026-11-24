@@ -3,6 +3,8 @@ import base64
 import io
 import logging
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -48,6 +50,7 @@ from db import (
     delete_all_user_services,
     delete_user_account,
     save_service_usage,
+    count_service_usage_history,
     get_service_usage_history,
     get_latest_service_usage,
     verify_password,
@@ -184,8 +187,8 @@ async def _check_thresholds_and_notify(user_service: dict, data: dict):
                 try:
                     await push_notifier.send_push(
                         user_service["user_id"],
-                        f"{user_service['name']}: {threshold_type} usage at {pct:.0f}%",
-                        f"{threshold_type.capitalize()} usage has crossed your {threshold:.0f}% threshold.",
+                        f"{user_service['name']}：{dict(session='会话额度', weekly='每周额度', monthly='每月额度').get(threshold_type, threshold_type)}已用 {pct:.0f}%",
+                        f"用量已超过设置的 {threshold:.0f}% 阈值。",
                         url="/",
                     )
                 except push_notifier.PushNotifierError as e:
@@ -204,6 +207,10 @@ async def _live_fetch_and_save(user_service: dict) -> dict:
     svc_type = user_service["service_type"]
     svc_name = user_service["name"]
     config = user_service.get("config", {})
+    # Config version captured at task start: if the user changes the config
+    # while this task is in flight, the task's writeback and result are
+    # discarded instead of clobbering the newer settings.
+    config_version = user_service.get("config_version", 1)
     _last_fetch_attempt_at[svc_id] = datetime.now(timezone.utc)
 
     fetcher = SERVICE_FETCHERS.get(svc_type)
@@ -216,10 +223,25 @@ async def _live_fetch_and_save(user_service: dict) -> dict:
         }
 
     async def _on_config_update(updates: dict):
-        config.update(updates)
-        await update_user_service(
-            svc_id, user_service["user_id"], svc_name, config, user_service.get("category_id")
+        # Credential rotation etc. writes back the fetcher's config updates.
+        # Atomic compare-and-set on config_version: if the user changed the
+        # config while this task was in flight, the write matches no row
+        # (returns False) and cannot clobber the newer settings.
+        nonlocal config_version
+        merged = {**config, **updates}
+        write_ok = await update_user_service(
+            svc_id, user_service["user_id"], svc_name, merged,
+            user_service.get("category_id"),
+            expected_config_version=config_version,
         )
+        if write_ok:
+            config.update(updates)
+            config_version += 1
+        else:
+            logger.info(
+                "Skipped config writeback for %s (id=%s): config changed during fetch",
+                svc_name, svc_id,
+            )
 
     try:
         logger.info("Starting live fetch for %s (%s, id=%s)...", svc_name, svc_type, svc_id)
@@ -232,12 +254,48 @@ async def _live_fetch_and_save(user_service: dict) -> dict:
 
         if result.get("status") == "ok":
             data = result.get("data", {})
-            saved = await save_service_usage(svc_id, data)
+            # Atomic version guard at the write point: a config update that
+            # landed while this task was in flight (credential swap, rename,
+            # category move) makes the insert match no row — the stale fetch's
+            # result is discarded, never persisted over the newer settings.
+            saved = await save_service_usage(svc_id, data, expected_config_version=config_version)
             if not saved:
-                # The service was deleted while its provider request was in
-                # flight. Do not recreate orphaned history or send alerts.
-                _clear_service_runtime_state([svc_id])
-                return {"id": svc_id, "service_type": svc_type, "name": svc_name, "result": result}
+                current = await get_user_service(svc_id, user_service["user_id"])
+                if current is None:
+                    # The service was deleted while its provider request was in
+                    # flight. Do not recreate orphaned history or send alerts.
+                    _clear_service_runtime_state([svc_id])
+                    return {"id": svc_id, "service_type": svc_type, "name": svc_name, "result": result}
+                logger.info(
+                    "Discarding stale fetch for %s (id=%s): config changed during fetch",
+                    svc_name, svc_id,
+                )
+                # Re-fetch once AFTER this task has fully exited: calling
+                # _trigger_background_live_fetch now would just join this very
+                # task (it still owns the inflight slot), so the follow-up is
+                # deferred until the done-callback clears the slot.
+                self_task = asyncio.current_task()
+
+                async def _refetch_after_exit():
+                    for _ in range(100):
+                        if _inflight_fetches.get(svc_id) is not self_task:
+                            _get_or_start_live_fetch(current)
+                            return
+                        await asyncio.sleep(0.05)
+
+                asyncio.create_task(_refetch_after_exit())
+                return {
+                    "id": svc_id,
+                    "service_type": svc_type,
+                    "name": current["name"],
+                    "result": {
+                        "configured": True,
+                        "status": "ok",
+                        "data": data,
+                        "stale_error": "配置已变更，本次结果已丢弃并按新配置重新刷新",
+                        "discarded_config_changed": True,
+                    },
+                }
             _last_fetch_error.pop(svc_id, None)
             try:
                 await _check_thresholds_and_notify(user_service, data)
@@ -408,13 +466,13 @@ app.add_middleware(
 async def get_current_user(authorization: Optional[str] = Header(None)):
     if not authorization:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="缺少认证请求头"
         )
     token = authorization.replace("Bearer ", "").strip()
     user = await get_user_by_session(token)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired session token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="登录会话无效或已过期"
         )
     return user
 
@@ -426,7 +484,12 @@ async def health():
 
 @app.get("/api/version")
 async def version():
-    return {"version": os.getenv("APP_VERSION", "dev")}
+    # build = 部署构建标识（compose 的 OPENUSAGE_BUILD_ID，如 "zh-20261121g"），
+    # 用于核对运行容器与本地真源的对应关系；version 字段保留供旧客户端读取。
+    return {
+        "version": os.getenv("APP_VERSION", "dev"),
+        "build": os.getenv("OPENUSAGE_BUILD_ID", "unknown"),
+    }
 
 
 @app.get("/api/auth/config")
@@ -448,7 +511,7 @@ def _normalize_email(email: Optional[str]) -> Optional[str]:
         return None
     email = email.strip().lower()
     if "@" not in email or " " in email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid email address")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请输入有效邮箱地址")
     return email
 
 
@@ -472,27 +535,27 @@ class TwoFactorVerifyRequest(BaseModel):
 async def register(req: RegisterRequest):
     if not ENABLE_ACCOUNT_CREATION:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Account creation is disabled"
+            status_code=status.HTTP_403_FORBIDDEN, detail="账户注册已关闭"
         )
     username = req.username.strip().lower()
     if len(username) < 3:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Username must be at least 3 characters"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="用户名至少需要 3 个字符"
         )
     if len(req.password) < 4:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 4 characters"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="密码至少需要 4 个字符"
         )
     email = _normalize_email(req.email)
 
     existing = await get_user_by_username(username)
     if existing:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Username is already taken"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="用户名已被使用"
         )
     if email and await get_user_by_email(email):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱已注册"
         )
 
     user_id = await create_user(username, req.password, email)
@@ -507,7 +570,7 @@ async def login(req: AuthRequest):
     user = await get_user_by_username(username)
     if not user or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误"
         )
 
     challenge_token = await mfa.begin_login(user["id"])
@@ -522,9 +585,9 @@ async def login(req: AuthRequest):
 async def two_factor_verify(req: TwoFactorVerifyRequest):
     row = await db.get_2fa_by_challenge_hash(mfa.digest(req.challenge_token))
     if not row or not row["enabled"]:
-        raise HTTPException(status_code=401, detail="Sign in again to verify your code")
+        raise HTTPException(status_code=401, detail="请重新登录以验证验证码")
     if not row["challenge_expires_at"] or datetime.fromisoformat(row["challenge_expires_at"]) <= mfa.now():
-        raise HTTPException(status_code=401, detail="Your sign-in attempt expired. Sign in again.")
+        raise HTTPException(status_code=401, detail="本次登录已过期，请重新登录。")
 
     await mfa.verify_code(row["user_id"], row, req.code)
     await db.clear_2fa_challenge(row["user_id"])
@@ -555,7 +618,7 @@ async def update_email(req: UpdateEmailRequest, user: dict = Depends(get_current
     email = _normalize_email(req.email)
     existing = await get_user_by_email(email)
     if existing and existing["id"] != user["id"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱已注册")
     await update_user_email(user["id"], email)
     return {"ok": True}
 
@@ -570,7 +633,7 @@ async def update_password(req: UpdatePasswordRequest, user: dict = Depends(get_c
     row = await db.ensure_2fa_row(user["id"])
     await _reauthenticate(user, row, req.current_password)
     if len(req.new_password) < 4:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 4 characters")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="密码至少需要 4 个字符")
     await update_user_password(user["id"], req.new_password)
     token = await _rotate_session(user)
     return {"token": token, "user": _public_user(user)}
@@ -587,7 +650,7 @@ async def delete_account(req: DeleteAccountRequest, user: dict = Depends(get_cur
     if req.confirmation.strip() != user["username"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Type your username exactly to confirm account deletion",
+            detail="请准确输入用户名以确认删除账户",
         )
 
     row = await db.ensure_2fa_row(user["id"])
@@ -596,14 +659,14 @@ async def delete_account(req: DeleteAccountRequest, user: dict = Depends(get_cur
         if not req.code:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Enter your two-factor or recovery code",
+                detail="请输入双重认证验证码或恢复码",
             )
         await mfa.verify_code(user["id"], row, req.code)
 
     services = await get_user_services(user["id"])
     service_ids = [service["id"] for service in services]
     if not await delete_user_account(user["id"]):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账户不存在")
     _clear_service_runtime_state(service_ids)
     return {"status": "ok"}
 
@@ -622,7 +685,7 @@ async def oidc_config():
 @app.get("/api/oidc/authorize")
 async def oidc_authorize():
     if not oidc.OIDC_ENABLED:
-        raise HTTPException(status_code=400, detail="OIDC not enabled")
+        raise HTTPException(status_code=400, detail="未启用 OIDC")
     state = await create_oidc_state()
     return RedirectResponse(oidc.build_auth_url(state))
 
@@ -630,22 +693,22 @@ async def oidc_authorize():
 @app.get("/api/oidc/callback")
 async def oidc_callback(code: Optional[str] = None, state: Optional[str] = None):
     if not oidc.OIDC_ENABLED:
-        raise HTTPException(status_code=400, detail="OIDC not enabled")
+        raise HTTPException(status_code=400, detail="未启用 OIDC")
     try:
         if not code or not state or not await consume_oidc_state(state):
-            raise HTTPException(status_code=400, detail="Invalid or expired sign-in attempt")
+            raise HTTPException(status_code=400, detail="登录请求无效或已过期")
 
         userinfo = oidc.fetch_userinfo(code)
         identifier = userinfo.get(oidc.OIDC_IDENTIFIER_FIELD)
         if not identifier:
             raise HTTPException(
-                status_code=400, detail=f"Field '{oidc.OIDC_IDENTIFIER_FIELD}' not found in user info"
+                status_code=400, detail=f"用户信息中未找到字段 '{oidc.OIDC_IDENTIFIER_FIELD}'"
             )
 
         user = await get_user_by_email(str(identifier))
         if not user:
             if not oidc.OIDC_AUTO_CREATE_USERS:
-                raise HTTPException(status_code=403, detail="No account found for this identity")
+                raise HTTPException(status_code=403, detail="此身份没有关联账户")
 
             raw_email = userinfo.get("email", str(identifier))
             raw_username = (
@@ -694,7 +757,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     """Always returns 200, regardless of whether the email is registered, so
     this endpoint can't be used to find out who has an account."""
     if not email_notifier.SMTP_ADDRESS:
-        raise HTTPException(status_code=503, detail="Password reset is not configured")
+        raise HTTPException(status_code=503, detail="未配置密码重置功能")
 
     email = _normalize_email(req.email)
     user = await get_user_by_email(email)
@@ -702,31 +765,31 @@ async def forgot_password(req: ForgotPasswordRequest):
         token = await create_password_reset_token(user["id"])
         link = f"{SERVER_URL}/reset-password?token={token}"
         body = (
-            "We received a request to reset your OpenUsage password.\n\n"
-            f"Reset it here: {link}\n\n"
-            "This link expires in 1 hour. If you didn't request this, you can ignore this email."
+            "我们收到了重置 OpenUsage 密码的请求。\n\n"
+            f"请通过此链接重置密码：{link}\n\n"
+            "链接将在 1 小时后过期。如果不是你本人操作，请忽略此邮件。"
         )
         try:
-            email_notifier.send(user["email"], "Reset your OpenUsage password", body)
+            email_notifier.send(user["email"], "重置 OpenUsage 密码", body)
         except email_notifier.EmailError as e:
             logger.error(f"Failed to send password reset email to {user['email']}: {e}")
 
-    return {"message": "If that email is registered, a reset link has been sent."}
+    return {"message": "如果该邮箱已注册，我们已发送密码重置链接。"}
 
 
 @app.post("/api/auth/reset-password")
 async def reset_password(req: ResetPasswordRequest):
     record = await get_password_reset_token(req.token)
     if not record:
-        raise HTTPException(status_code=400, detail="This reset link is invalid or has already been used")
+        raise HTTPException(status_code=400, detail="重置链接无效或已使用")
 
     created_at = datetime.fromisoformat(record["created_at"])
     if datetime.now(timezone.utc) - created_at > PASSWORD_RESET_MAX_AGE:
         await delete_password_reset_token(req.token)
-        raise HTTPException(status_code=400, detail="This reset link has expired")
+        raise HTTPException(status_code=400, detail="重置链接已过期")
 
     if len(req.new_password) < 4:
-        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+        raise HTTPException(status_code=400, detail="密码至少需要 4 个字符")
 
     await update_user_password(record["user_id"], req.new_password)
     await delete_all_sessions_for_user(record["user_id"])
@@ -774,7 +837,7 @@ async def two_factor_setup(req: TwoFactorPasswordRequest, user: dict = Depends(g
     row = await db.ensure_2fa_row(user["id"])
     await _reauthenticate(user, row, req.password)
     if row["enabled"]:
-        raise HTTPException(status_code=400, detail="Two-factor authentication is already enabled")
+        raise HTTPException(status_code=400, detail="双重认证已启用")
 
     secret = pyotp.random_base32()
     pending_secret = mfa.cipher().encrypt(secret.encode()).decode()
@@ -792,7 +855,7 @@ async def two_factor_enable(req: TwoFactorCodeRequest, user: dict = Depends(get_
     mfa.check_limit(row)
     if row["enabled"] or not row["pending_secret"] or not row["pending_expires_at"] or \
             datetime.fromisoformat(row["pending_expires_at"]) <= mfa.now():
-        raise HTTPException(status_code=400, detail="Start two-factor setup again")
+        raise HTTPException(status_code=400, detail="请重新开始设置双重认证")
 
     pending_secret = mfa.cipher().decrypt(row["pending_secret"].encode()).decode()
     step = mfa.totp_step(pending_secret, req.code.strip())
@@ -810,7 +873,7 @@ async def two_factor_disable(req: TwoFactorManageRequest, user: dict = Depends(g
     row = await db.ensure_2fa_row(user["id"])
     await _reauthenticate(user, row, req.password)
     if not row["enabled"]:
-        raise HTTPException(status_code=400, detail="Two-factor authentication is not enabled")
+        raise HTTPException(status_code=400, detail="未启用双重认证")
     await mfa.verify_code(user["id"], row, req.code)
     await db.disable_2fa(user["id"])
     token = await _rotate_session(user)
@@ -822,7 +885,7 @@ async def two_factor_recovery_codes(req: TwoFactorManageRequest, user: dict = De
     row = await db.ensure_2fa_row(user["id"])
     await _reauthenticate(user, row, req.password)
     if not row["enabled"]:
-        raise HTTPException(status_code=400, detail="Two-factor authentication is not enabled")
+        raise HTTPException(status_code=400, detail="未启用双重认证")
     await mfa.verify_code(user["id"], row, req.code)
     codes, hashes = mfa.recovery_codes()
     await db.update_2fa_recovery_hashes(user["id"], hashes)
@@ -851,7 +914,7 @@ class UserServiceCreate(BaseModel):
 @app.post("/api/user-services")
 async def create_user_service(req: UserServiceCreate, user: dict = Depends(get_current_user)):
     if req.service_type not in SERVICE_FETCHERS:
-        raise HTTPException(status_code=400, detail=f"Invalid service_type: {req.service_type}")
+        raise HTTPException(status_code=400, detail=f"无效的服务类型：{req.service_type}")
     svc_name = req.name.strip() or req.service_type.capitalize()
     svc_id = await add_user_service(
         user["id"],
@@ -886,7 +949,7 @@ async def update_service(
 ):
     existing = await get_user_service(service_id, user["id"])
     if not existing:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(status_code=404, detail="服务不存在")
     svc_name = req.name.strip() or existing["service_type"].capitalize()
     effective_thresholds = (
         existing.get("notify_thresholds", {})
@@ -930,26 +993,56 @@ async def update_service(
 async def get_service_history(
     service_id: int,
     since: Optional[str] = None,
-    limit: int = Query(default=1000, ge=1, le=10000),
+    limit: int = Query(default=10000, ge=1, le=10000),
+    max_points: int = Query(default=400, ge=10, le=2000),
     user: dict = Depends(get_current_user),
 ):
+    # Summaries are computed over every fetched entry in the selected range
+    # (no silent truncation); the chart itself receives downsampled points
+    # (stride sampling that always keeps the newest point), plus coverage
+    # metadata so a truncated response is visible instead of misleading.
     existing = await get_user_service(service_id, user["id"])
     if not existing:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(status_code=404, detail="服务不存在")
     history = await get_service_usage_history(service_id, since, limit)
+    total_entries = await count_service_usage_history(service_id, since)
+    truncated = total_entries > len(history)
     # Pre-extract the chartable figures so the client doesn't have to know
     # every provider's payload shape.
     series: dict = {}
     for entry in history:
         metrics = extract_history_metrics(existing["service_type"], entry["data"])
         for key, m in metrics.items():
-            s = series.setdefault(key, {"label": m["label"], "unit": m["unit"], "points": []})
+            s = series.setdefault(key, {"points": [], "values": []})
+            s.update(label=m["label"], unit=m["unit"])
             s["points"].append({"t": entry["fetched_at"], "v": m["value"]})
+            s["values"].append(m["value"])
+    for s in series.values():
+        values = s.pop("values")
+        count = len(values)
+        s["summary"] = {
+            "count": count,
+            "avg": round(sum(values) / count, 4) if count else None,
+            "min": min(values) if count else None,
+            "max": max(values) if count else None,
+        }
+        if count > max_points:
+            stride = -(-(count - 1) // (max_points - 1))  # ceil: keeps ≤ max_points points
+            indices = list(range(0, count - 1, stride))
+            indices.append(count - 1)  # always keep the newest point
+            s["points"] = [s["points"][i] for i in indices]
+    first = history[0]["fetched_at"] if history else None
+    last = history[-1]["fetched_at"] if history else None
     return {
         "store_history": existing["store_history"],
         "service_type": existing["service_type"],
         "series": series,
-        "history": history,
+        "coverage": {
+            "first": first,
+            "last": last,
+            "total_entries": total_entries,
+            "truncated": truncated,
+        },
     }
 
 
@@ -957,7 +1050,7 @@ async def get_service_history(
 async def delete_service(service_id: int, user: dict = Depends(get_current_user)):
     existing = await get_user_service(service_id, user["id"])
     if not existing:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(status_code=404, detail="服务不存在")
     await delete_user_service(service_id, user["id"])
     _clear_service_runtime_state([service_id])
     return {"status": "ok"}
@@ -974,7 +1067,7 @@ async def delete_all_services(
     if req.confirmation.strip() != "DELETE ALL":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Type "DELETE ALL" to confirm',
+            detail='请输入“DELETE ALL”以确认',
         )
     services = await get_user_services(user["id"])
     service_ids = [service["id"] for service in services]
@@ -997,7 +1090,7 @@ class CategoryCreate(BaseModel):
 async def create_category_endpoint(req: CategoryCreate, user: dict = Depends(get_current_user)):
     name = req.name.strip()
     if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
+        raise HTTPException(status_code=400, detail="名称不能为空")
     cat_id = await create_category(user["id"], name)
     return {"status": "ok", "id": cat_id}
 
@@ -1012,10 +1105,10 @@ async def update_category_endpoint(
 ):
     name = req.name.strip()
     if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
+        raise HTTPException(status_code=400, detail="名称不能为空")
     updated = await update_category(category_id, user["id"], name)
     if not updated:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail="分类不存在")
     return {"status": "ok"}
 
 
@@ -1034,10 +1127,10 @@ async def move_category_endpoint(
     category_id: int, req: CategoryMove, user: dict = Depends(get_current_user)
 ):
     if req.direction not in ("up", "down"):
-        raise HTTPException(status_code=400, detail="direction must be 'up' or 'down'")
+        raise HTTPException(status_code=400, detail="移动方向必须是 'up' 或 'down'")
     moved = await move_category(category_id, user["id"], req.direction)
     if not moved:
-        raise HTTPException(status_code=400, detail="Cannot move category further in that direction")
+        raise HTTPException(status_code=400, detail="无法继续向该方向移动分类")
     return {"status": "ok"}
 
 
@@ -1059,7 +1152,7 @@ async def get_one_usage(
 ):
     svc = await get_user_service(service_id, user["id"])
     if not svc:
-        raise HTTPException(status_code=404, detail="Service not found")
+        raise HTTPException(status_code=404, detail="服务不存在")
     return await _fetch_and_save_user_service(svc, force_refresh=force)
 
 
@@ -1137,20 +1230,56 @@ async def test_custom_endpoint(req: GenericTestRequest, user: dict = Depends(get
     return await test_generic(req.config)
 
 
-# Copilot Device Flow Endpoints
+# Copilot Device Flow Endpoints. Authorization sessions are stored per user
+# (keyed by user id + server-generated flow id) with an expiry taken from
+# GitHub's expires_in; terminal poll results clean up immediately. The
+# in-memory store means a backend restart cancels any pending flow — the
+# frontend just starts a new one, which matches the 15-minute lifetime of a
+# device code anyway.
+_copilot_flows: dict[tuple[int, str], dict] = {}
+
+
+def _copilot_flow_get(user_id: int, flow_id: str) -> Optional[dict]:
+    flow = _copilot_flows.get((user_id, flow_id))
+    if flow is None:
+        return None
+    if time.time() > flow["expires_at"]:
+        _copilot_flows.pop((user_id, flow_id), None)
+        return None
+    return flow
+
+
 @app.post("/api/copilot/device/start")
-async def copilot_device_start():
-    return await start_device_flow()
+async def copilot_device_start(user: dict = Depends(get_current_user)):
+    data = await start_device_flow()
+    flow_id = uuid.uuid4().hex[:12]
+    _copilot_flows[(user["id"], flow_id)] = {
+        "device_code": data["device_code"],
+        "interval": data["interval"],
+        "expires_at": time.time() + data["expires_in"],
+    }
+    return {**data, "flow_id": flow_id}
 
 
 class CopilotPollItem(BaseModel):
-    device_code: Optional[str] = None
+    flow_id: str
 
 
 @app.post("/api/copilot/device/poll")
-async def copilot_device_poll(item: Optional[CopilotPollItem] = None):
-    dev_code = item.device_code if item else None
-    return await poll_device_flow(dev_code)
+async def copilot_device_poll(req: CopilotPollItem, user: dict = Depends(get_current_user)):
+    flow = _copilot_flow_get(user["id"], req.flow_id)
+    if not flow:
+        return {"status": "expired"}
+
+    result = await poll_device_flow(flow["device_code"])
+    if result["status"] == "pending":
+        if "interval" in result:
+            flow["interval"] = result["interval"]
+        return result
+
+    # Terminal states (ok / expired / denied / error) end the session.
+    _copilot_flows.pop((user["id"], req.flow_id), None)
+    return result
 
 
 # Push notification endpoints. There's no separate "enabled" flag on the
@@ -1178,7 +1307,7 @@ class PushSubscriptionDelete(BaseModel):
 @app.post("/api/push/subscribe")
 async def push_subscribe(req: PushSubscriptionCreate, user: dict = Depends(get_current_user)):
     if not push_notifier.is_configured():
-        raise HTTPException(status_code=400, detail="Push notifications are not configured on this instance")
+        raise HTTPException(status_code=400, detail="此实例未配置推送通知")
     await add_push_subscription(user["id"], req.endpoint, req.keys.p256dh, req.keys.auth)
     return {"status": "ok"}
 
@@ -1193,7 +1322,7 @@ async def push_unsubscribe(req: PushSubscriptionDelete, user: dict = Depends(get
 async def push_test(user: dict = Depends(get_current_user)):
     try:
         await push_notifier.send_push(
-            user["id"], "OpenUsage test notification", "If you can see this, push notifications are working."
+            user["id"], "OpenUsage 测试通知", "如果看到了这条消息，说明推送通知工作正常。"
         )
     except push_notifier.PushNotifierError as e:
         raise HTTPException(status_code=400, detail=str(e))

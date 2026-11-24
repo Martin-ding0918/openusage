@@ -2,11 +2,11 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Settings - OpenUsage">
+<Layout title="设置 - OpenUsage">
   <div class="settings-page">
     <header class="settings-page-header">
-      <h1>Settings</h1>
-      <p>Manage your account, security, and dashboard preferences.</p>
+      <h1>设置</h1>
+      <p>管理账户、安全和仪表盘偏好设置。</p>
     </header>
 
     <div class="settings-grid">
@@ -16,46 +16,46 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
           </div>
           <div>
-            <h2>Account</h2>
-            <p>Your sign-in details and recovery email.</p>
+            <h2>账户</h2>
+            <p>登录信息和用于恢复账户的邮箱。</p>
           </div>
         </div>
 
         <div class="account-grid">
           <div class="settings-subsection">
             <div class="subsection-heading">
-              <h3>Email address</h3>
-              <p>Used for password resets and OIDC sign-in.</p>
+              <h3>邮箱地址</h3>
+              <p>用于重置密码和 OIDC 登录。</p>
             </div>
             <form id="account-form" class="settings-inline-form">
               <div class="form-group">
-                <label for="account-email">Email</label>
+                <label for="account-email">邮箱</label>
                 <input type="email" id="account-email" placeholder="you@example.com" />
               </div>
-              <button type="submit" class="btn btn-sm btn-primary">Save email</button>
+              <button type="submit" class="btn btn-sm btn-primary">保存邮箱</button>
             </form>
             <div id="account-error" class="auth-error" style="display: none;"></div>
-            <div id="account-success" class="auth-success" style="display: none;">Email updated.</div>
+            <div id="account-success" class="auth-success" style="display: none;">邮箱已更新。</div>
           </div>
 
           <div class="settings-subsection account-password">
             <div class="subsection-heading">
-              <h3>Change password</h3>
-              <p>Use a unique password you don't use elsewhere.</p>
+              <h3>修改密码</h3>
+              <p>请使用未在其他网站使用过的独立密码。</p>
             </div>
             <form id="password-form">
               <div class="form-group">
-                <label for="current-password">Current password</label>
+                <label for="current-password">当前密码</label>
                 <input type="password" id="current-password" autocomplete="current-password" required />
               </div>
               <div class="form-group">
-                <label for="new-password">New password</label>
+                <label for="new-password">新密码</label>
                 <input type="password" id="new-password" autocomplete="new-password" required minlength="4" />
               </div>
-              <button type="submit" class="btn btn-sm">Change password</button>
+              <button type="submit" class="btn btn-sm">修改密码</button>
             </form>
             <div id="password-error" class="auth-error" style="display: none;"></div>
-            <div id="password-success" class="auth-success" style="display: none;">Password updated.</div>
+            <div id="password-success" class="auth-success" style="display: none;">密码已更新。</div>
           </div>
         </div>
       </section>
@@ -66,23 +66,23 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
           </div>
           <div>
-            <h2>Security</h2>
-            <p>Protect your account with a second factor.</p>
+            <h2>安全</h2>
+            <p>使用双重认证保护账户。</p>
           </div>
         </div>
         <div class="panel-body panel-body-fill">
-          <div id="twofactor-loading" class="status-card"><span class="status-dot status-dot-loading"></span>Loading two-factor status…</div>
+          <div id="twofactor-loading" class="status-card"><span class="status-dot status-dot-loading"></span>正在加载双重认证状态…</div>
           <div id="twofactor-disabled-block" style="display: none;">
-            <div class="status-card"><span class="status-dot"></span><span>Two-factor authentication is off</span></div>
+            <div class="status-card"><span class="status-dot"></span><span>双重认证未启用</span></div>
             <div class="twofactor-actions">
-              <button type="button" id="twofactor-enable-btn" class="btn btn-sm btn-primary">Enable two-factor authentication</button>
+              <button type="button" id="twofactor-enable-btn" class="btn btn-sm btn-primary">启用双重认证</button>
             </div>
           </div>
           <div id="twofactor-enabled-block" style="display: none;">
             <div class="status-card status-card-success"><span class="status-dot"></span><span id="twofactor-recovery-remaining"></span></div>
             <div class="twofactor-actions">
-              <button type="button" id="twofactor-regen-btn" class="btn btn-sm">Regenerate recovery codes</button>
-              <button type="button" id="twofactor-disable-btn" class="btn btn-sm btn-danger">Disable</button>
+              <button type="button" id="twofactor-regen-btn" class="btn btn-sm">重新生成恢复码</button>
+              <button type="button" id="twofactor-disable-btn" class="btn btn-sm btn-danger">停用</button>
             </div>
           </div>
         </div>
@@ -94,16 +94,16 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
           </div>
           <div>
-            <h2>Push notifications</h2>
-            <p>Receive usage alerts on this device.</p>
+            <h2>推送通知</h2>
+            <p>在此设备接收用量提醒。</p>
           </div>
         </div>
         <div class="panel-body panel-body-fill">
-          <div class="notification-copy" id="push-description">Get notified when usage crosses thresholds configured from a dashboard card.</div>
+          <div class="notification-copy" id="push-description">用量超过仪表盘卡片中配置的阈值时接收通知。</div>
           <div id="push-status" class="auth-success" style="display: none;"></div>
           <div class="twofactor-actions push-actions">
-            <button type="button" id="push-toggle-btn" class="btn btn-sm btn-primary" hidden>Enable on this device</button>
-            <button type="button" id="push-test-btn" class="btn btn-sm" hidden>Send test notification</button>
+            <button type="button" id="push-toggle-btn" class="btn btn-sm btn-primary" hidden>在此设备启用</button>
+            <button type="button" id="push-test-btn" class="btn btn-sm" hidden>发送测试通知</button>
           </div>
         </div>
       </section>
@@ -114,15 +114,15 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
           </div>
           <div>
-            <h2>Categories</h2>
-            <p>Organize services into sections on your dashboard.</p>
+            <h2>分类</h2>
+            <p>通过分类整理仪表盘上的服务。</p>
           </div>
         </div>
         <div class="panel-body">
           <div id="categories-list" class="categories-list"></div>
           <form id="add-category-form" class="add-category-form">
-            <input type="text" id="new-category-name" placeholder="New category name (e.g. Work, Personal)" required />
-            <button type="submit" class="btn btn-sm btn-primary">+ Add category</button>
+            <input type="text" id="new-category-name" placeholder="新分类名称（如工作、个人）" required />
+            <button type="submit" class="btn btn-sm btn-primary">+ 添加分类</button>
           </form>
         </div>
       </section>
@@ -133,17 +133,17 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
           </div>
           <div>
-            <h2>Service data</h2>
-            <p>Manage the providers and APIs connected to your dashboard.</p>
+            <h2>服务数据</h2>
+            <p>管理已接入仪表盘的服务商和 API。</p>
           </div>
         </div>
         <div class="panel-body">
           <div class="destructive-action-row">
             <div class="destructive-copy">
-              <h3>Delete all services and APIs</h3>
-              <p>Removes every provider configuration, stored credential, usage record, and notification threshold. Your categories and account remain.</p>
+              <h3>删除全部服务和 API</h3>
+              <p>删除所有服务商配置、已保存凭据、用量记录和通知阈值。分类和账户将保留。</p>
             </div>
-            <button type="button" id="delete-all-services-btn" class="btn btn-danger">Delete all services</button>
+            <button type="button" id="delete-all-services-btn" class="btn btn-danger">删除全部服务</button>
           </div>
           <div id="delete-services-success" class="auth-success" style="display: none;"></div>
         </div>
@@ -155,17 +155,17 @@ import Layout from '../layouts/Layout.astro';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.7 2.4 17.5A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.5L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           </div>
           <div>
-            <h2>Danger zone</h2>
-            <p>Permanent actions that cannot be undone.</p>
+            <h2>危险操作</h2>
+            <p>以下操作永久生效，无法撤销。</p>
           </div>
         </div>
         <div class="panel-body">
           <div class="destructive-action-row">
             <div class="destructive-copy">
-              <h3>Delete account</h3>
-              <p>Permanently removes your account, sessions, connected services, categories, usage history, recovery data, and push subscriptions.</p>
+              <h3>删除账户</h3>
+              <p>永久删除账户、登录会话、已接入服务、分类、用量历史、恢复数据和推送订阅。</p>
             </div>
-            <button type="button" id="delete-account-btn" class="btn btn-danger">Delete account</button>
+            <button type="button" id="delete-account-btn" class="btn btn-danger">删除账户</button>
           </div>
         </div>
       </section>
@@ -175,20 +175,20 @@ import Layout from '../layouts/Layout.astro';
   <div id="delete-services-modal" class="modal-backdrop" style="display: none;">
     <div class="modal destructive-modal">
       <div class="modal-header">
-        <h3>Delete all services?</h3>
+        <h3>删除全部服务？</h3>
         <button type="button" id="delete-services-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="destructive-warning">This permanently removes every configured service and API, including stored credentials and usage history. It cannot be undone.</p>
+        <p class="destructive-warning">这将永久删除所有已配置的服务和 API，包括已保存凭据和用量历史，且无法撤销。</p>
         <form id="delete-services-form">
           <div class="form-group">
-            <label for="delete-services-confirmation">Type <strong>DELETE ALL</strong> to confirm</label>
+            <label for="delete-services-confirmation">输入 <strong>DELETE ALL</strong> 以确认</label>
             <input type="text" id="delete-services-confirmation" autocomplete="off" autocapitalize="characters" required />
           </div>
           <div id="delete-services-error" class="auth-error" style="display: none;"></div>
           <div class="modal-footer">
-            <button type="button" id="delete-services-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" id="delete-services-submit-btn" class="btn btn-danger">Delete all services</button>
+            <button type="button" id="delete-services-cancel-btn" class="btn btn-secondary">取消</button>
+            <button type="submit" id="delete-services-submit-btn" class="btn btn-danger">删除全部服务</button>
           </div>
         </form>
       </div>
@@ -198,28 +198,28 @@ import Layout from '../layouts/Layout.astro';
   <div id="delete-account-modal" class="modal-backdrop" style="display: none;">
     <div class="modal destructive-modal">
       <div class="modal-header">
-        <h3>Delete your account?</h3>
+        <h3>删除账户？</h3>
         <button type="button" id="delete-account-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="destructive-warning">This permanently deletes your OpenUsage account and everything associated with it. There is no recovery path.</p>
+        <p class="destructive-warning">这将永久删除 OpenUsage 账户及其所有关联数据，无法恢复。</p>
         <form id="delete-account-form">
           <div class="form-group">
-            <label for="delete-account-password">Current password</label>
+            <label for="delete-account-password">当前密码</label>
             <input type="password" id="delete-account-password" autocomplete="current-password" required />
           </div>
           <div class="form-group" id="delete-account-code-group" style="display: none;">
-            <label for="delete-account-code">Two-factor or recovery code</label>
+            <label for="delete-account-code">双重认证验证码或恢复码</label>
             <input type="text" id="delete-account-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
           </div>
           <div class="form-group">
-            <label for="delete-account-confirmation">Type <strong id="delete-account-username">your username</strong> to confirm</label>
+            <label for="delete-account-confirmation">输入 <strong id="delete-account-username">你的用户名</strong> 以确认</label>
             <input type="text" id="delete-account-confirmation" autocomplete="off" autocapitalize="none" spellcheck="false" required />
           </div>
           <div id="delete-account-error" class="auth-error" style="display: none;"></div>
           <div class="modal-footer">
-            <button type="button" id="delete-account-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" id="delete-account-submit-btn" class="btn btn-danger">Permanently delete account</button>
+            <button type="button" id="delete-account-cancel-btn" class="btn btn-secondary">取消</button>
+            <button type="submit" id="delete-account-submit-btn" class="btn btn-danger">永久删除账户</button>
           </div>
         </form>
       </div>
@@ -230,37 +230,37 @@ import Layout from '../layouts/Layout.astro';
   <div id="twofactor-setup-modal" class="modal-backdrop" style="display: none;">
     <div class="modal">
       <div class="modal-header">
-        <h3>Enable two-factor authentication</h3>
+        <h3>启用双重认证</h3>
         <button type="button" id="twofactor-setup-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
         <div id="twofactor-setup-error" class="auth-error" style="display: none;"></div>
 
         <form id="twofactor-password-form" class="twofactor-step">
-          <p class="msg-hint">Confirm your password to continue.</p>
+          <p class="msg-hint">请确认密码以继续。</p>
           <div class="form-group">
-            <label for="twofactor-setup-password">Password</label>
+            <label for="twofactor-setup-password">密码</label>
             <input type="password" id="twofactor-setup-password" autocomplete="current-password" required />
           </div>
           <div class="modal-footer">
-            <button type="button" id="twofactor-setup-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Continue</button>
+            <button type="button" id="twofactor-setup-cancel-btn" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary">继续</button>
           </div>
         </form>
 
         <form id="twofactor-confirm-form" class="twofactor-step" style="display: none;">
-          <p class="msg-hint">Scan this QR code with your authenticator app, or enter the code manually.</p>
+          <p class="msg-hint">使用身份验证器扫描二维码，或手动输入密钥。</p>
           <div class="twofactor-qr">
-            <img id="twofactor-qr-image" alt="Two-factor QR code" />
+            <img id="twofactor-qr-image" alt="双重认证二维码" />
           </div>
           <p class="twofactor-secret" id="twofactor-secret-text"></p>
           <div class="form-group">
-            <label for="twofactor-confirm-code">6-digit code</label>
+            <label for="twofactor-confirm-code">6 位验证码</label>
             <input type="text" id="twofactor-confirm-code" placeholder="123456" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required />
           </div>
           <div class="modal-footer">
-            <button type="button" id="twofactor-confirm-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Enable</button>
+            <button type="button" id="twofactor-confirm-cancel-btn" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary">启用</button>
           </div>
         </form>
       </div>
@@ -271,14 +271,14 @@ import Layout from '../layouts/Layout.astro';
   <div id="twofactor-recovery-modal" class="modal-backdrop" style="display: none;">
     <div class="modal">
       <div class="modal-header">
-        <h3>Save your recovery codes</h3>
+        <h3>保存恢复码</h3>
       </div>
       <div class="modal-body">
-        <p class="msg-hint">Each code can be used once to sign in if you lose access to your authenticator app. Store them somewhere safe - they won't be shown again.</p>
+        <p class="msg-hint">无法使用身份验证器时，每个恢复码可用于登录一次。请妥善保存，之后不会再次显示。</p>
         <div id="twofactor-recovery-codes" class="recovery-codes-list"></div>
         <div class="modal-footer">
-          <button type="button" id="twofactor-recovery-download-btn" class="btn btn-secondary">Download codes</button>
-          <button type="button" id="twofactor-recovery-done-btn" class="btn btn-primary">I've saved these codes</button>
+          <button type="button" id="twofactor-recovery-download-btn" class="btn btn-secondary">下载恢复码</button>
+          <button type="button" id="twofactor-recovery-done-btn" class="btn btn-primary">我已保存恢复码</button>
         </div>
       </div>
     </div>
@@ -288,23 +288,23 @@ import Layout from '../layouts/Layout.astro';
   <div id="twofactor-manage-modal" class="modal-backdrop" style="display: none;">
     <div class="modal">
       <div class="modal-header">
-        <h3 id="twofactor-manage-title">Disable two-factor authentication</h3>
+        <h3 id="twofactor-manage-title">停用双重认证</h3>
         <button type="button" id="twofactor-manage-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
         <div id="twofactor-manage-error" class="auth-error" style="display: none;"></div>
         <form id="twofactor-manage-form">
           <div class="form-group">
-            <label for="twofactor-manage-password">Password</label>
+            <label for="twofactor-manage-password">密码</label>
             <input type="password" id="twofactor-manage-password" autocomplete="current-password" required />
           </div>
           <div class="form-group">
-            <label for="twofactor-manage-code">Two-factor or recovery code</label>
+            <label for="twofactor-manage-code">双重认证验证码或恢复码</label>
             <input type="text" id="twofactor-manage-code" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required />
           </div>
           <div class="modal-footer">
-            <button type="button" id="twofactor-manage-cancel-btn" class="btn btn-secondary">Cancel</button>
-            <button type="submit" id="twofactor-manage-submit-btn" class="btn btn-primary btn-danger">Confirm</button>
+            <button type="button" id="twofactor-manage-cancel-btn" class="btn btn-secondary">取消</button>
+            <button type="submit" id="twofactor-manage-submit-btn" class="btn btn-primary btn-danger">确认</button>
           </div>
         </form>
       </div>
@@ -1446,14 +1446,14 @@ import Layout from '../layouts/Layout.astro';
       if (!token || !input) return;
       try {
         const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Failed to load account');
+        if (!res.ok) throw new Error('账户加载失败');
         const data = await res.json();
         currentAccountUser = data.user;
         input.value = data.user.email || '';
         const usernameEl = document.getElementById('delete-account-username');
         if (usernameEl) usernameEl.textContent = data.user.username;
       } catch (e) {
-        console.error('Failed to load account', e);
+        console.error('账户加载失败', e);
       }
     }
 
@@ -1474,7 +1474,7 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ email: input.value.trim() }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Could not update email');
+        if (!res.ok) throw new Error(data.detail || '无法更新邮箱');
         if (successEl) successEl.style.display = 'block';
         const userStr = localStorage.getItem('auth_user');
         if (userStr) {
@@ -1484,7 +1484,7 @@ import Layout from '../layouts/Layout.astro';
         }
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'Could not update email';
+          errorEl.textContent = err.message || '无法更新邮箱';
           errorEl.style.display = 'block';
         }
       }
@@ -1508,14 +1508,14 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ current_password: currentInput.value, new_password: newInput.value }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Could not update password');
+        if (!res.ok) throw new Error(data.detail || '无法更新密码');
         applySession(data);
         currentInput.value = '';
         newInput.value = '';
         if (successEl) successEl.style.display = 'block';
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'Could not update password';
+          errorEl.textContent = err.message || '无法更新密码';
           errorEl.style.display = 'block';
         }
       }
@@ -1535,7 +1535,7 @@ import Layout from '../layouts/Layout.astro';
       const enabledBlock = document.getElementById('twofactor-enabled-block');
       try {
         const res = await fetch('/api/auth/2fa', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Failed to load two-factor status');
+        if (!res.ok) throw new Error('双重认证状态加载失败');
         const data = await res.json();
         accountHasTwoFactor = Boolean(data.enabled);
         if (loadingEl) loadingEl.style.display = 'none';
@@ -1544,14 +1544,14 @@ import Layout from '../layouts/Layout.astro';
           if (disabledBlock) disabledBlock.style.display = 'none';
           const remainingEl = document.getElementById('twofactor-recovery-remaining');
           if (remainingEl) {
-            remainingEl.textContent = `Enabled - ${data.recovery_codes_remaining} recovery code${data.recovery_codes_remaining === 1 ? '' : 's'} remaining.`;
+            remainingEl.textContent = `已启用，剩余 ${data.recovery_codes_remaining} 个恢复码。`;
           }
         } else {
           if (enabledBlock) enabledBlock.style.display = 'none';
           if (disabledBlock) disabledBlock.style.display = 'block';
         }
       } catch (e) {
-        if (loadingEl) loadingEl.textContent = 'Could not load two-factor status.';
+        if (loadingEl) loadingEl.textContent = '无法加载双重认证状态。';
         console.error('Failed to load 2FA status', e);
       }
     }
@@ -1621,7 +1621,7 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ password: passwordInput.value }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Could not start setup');
+        if (!res.ok) throw new Error(data.detail || '无法开始设置');
 
         (document.getElementById('twofactor-qr-image') as HTMLImageElement).src = data.qr_code;
         const secretEl = document.getElementById('twofactor-secret-text');
@@ -1630,7 +1630,7 @@ import Layout from '../layouts/Layout.astro';
         if (confirmStep) confirmStep.style.display = 'flex';
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'Could not start setup';
+          errorEl.textContent = err.message || '无法开始设置';
           errorEl.style.display = 'block';
         }
       }
@@ -1651,7 +1651,7 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ code: codeInput.value.trim() }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Could not confirm code');
+        if (!res.ok) throw new Error(data.detail || '无法确认验证码');
 
         applySession(data);
         closeSetupModal();
@@ -1659,7 +1659,7 @@ import Layout from '../layouts/Layout.astro';
         await loadTwoFactorStatus();
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'Could not confirm code';
+          errorEl.textContent = err.message || '无法确认验证码';
           errorEl.style.display = 'block';
         }
       }
@@ -1684,13 +1684,13 @@ import Layout from '../layouts/Layout.astro';
     document.getElementById('twofactor-disable-btn')?.addEventListener('click', () => {
       pendingManageAction = 'disable';
       const title = document.getElementById('twofactor-manage-title');
-      if (title) title.textContent = 'Disable two-factor authentication';
+      if (title) title.textContent = '停用双重认证';
       manageModal?.style.setProperty('display', 'flex');
     });
     document.getElementById('twofactor-regen-btn')?.addEventListener('click', () => {
       pendingManageAction = 'regenerate';
       const title = document.getElementById('twofactor-manage-title');
-      if (title) title.textContent = 'Regenerate recovery codes';
+      if (title) title.textContent = '重新生成恢复码';
       manageModal?.style.setProperty('display', 'flex');
     });
     document.getElementById('twofactor-manage-close-btn')?.addEventListener('click', closeManageModal);
@@ -1714,7 +1714,7 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ password: passwordInput.value, code: codeInput.value.trim() }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Could not complete request');
+        if (!res.ok) throw new Error(data.detail || '无法完成请求');
 
         const action = pendingManageAction;
         closeManageModal();
@@ -1727,7 +1727,7 @@ import Layout from '../layouts/Layout.astro';
         }
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'Could not complete request';
+          errorEl.textContent = err.message || '无法完成请求';
           errorEl.style.display = 'block';
         }
       }
@@ -1743,23 +1743,23 @@ import Layout from '../layouts/Layout.astro';
         const res = await fetch('/api/categories', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP 错误 ${res.status}`);
         allCategories = await res.json();
 
         listEl.innerHTML = allCategories.map((cat, idx) => `
           <div class="category-row" data-id="${cat.id}">
             <input type="text" class="cat-name-input" value="${escapeHtml(cat.name)}" data-id="${cat.id}" />
             <div class="cat-actions">
-              <button type="button" class="icon-btn-sm cat-move-up" data-id="${cat.id}" title="Move up" ${idx === 0 ? 'disabled' : ''}>&uarr;</button>
-              <button type="button" class="icon-btn-sm cat-move-down" data-id="${cat.id}" title="Move down" ${idx === allCategories.length - 1 ? 'disabled' : ''}>&darr;</button>
-              <button type="button" class="icon-btn-sm cat-delete" data-id="${cat.id}" title="Delete category">&times;</button>
+              <button type="button" class="icon-btn-sm cat-move-up" data-id="${cat.id}" title="上移" ${idx === 0 ? 'disabled' : ''}>&uarr;</button>
+              <button type="button" class="icon-btn-sm cat-move-down" data-id="${cat.id}" title="下移" ${idx === allCategories.length - 1 ? 'disabled' : ''}>&darr;</button>
+              <button type="button" class="icon-btn-sm cat-delete" data-id="${cat.id}" title="删除分类">&times;</button>
             </div>
           </div>
         `).join('');
 
         if (select) {
           const current = select.value;
-          select.innerHTML = '<option value="">Uncategorized</option>' +
+          select.innerHTML = '<option value="">未分类</option>' +
             allCategories.map(cat => `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`).join('');
           select.value = current;
         }
@@ -1800,7 +1800,7 @@ import Layout from '../layouts/Layout.astro';
           btn.addEventListener('click', async () => {
             const id = parseInt(btn.dataset.id);
             const cat = allCategories.find(c => c.id === id);
-            if (!confirm(`Delete category "${cat?.name}"? Services in it become Uncategorized.`)) return;
+            if (!confirm(`确定删除分类“${cat?.name}”吗？其中的服务将移至未分类。`)) return;
             await fetch(`/api/categories/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
@@ -1868,14 +1868,14 @@ import Layout from '../layouts/Layout.astro';
       if (errorEl) errorEl.style.display = 'none';
       if (input.value.trim() !== 'DELETE ALL') {
         if (errorEl) {
-          errorEl.textContent = 'Type “DELETE ALL” exactly to continue.';
+          errorEl.textContent = '请准确输入“DELETE ALL”以继续。';
           errorEl.style.display = 'block';
         }
         return;
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Deleting…';
+      submitBtn.textContent = '正在删除…';
       try {
         const response = await fetch('/api/user-services', {
           method: 'DELETE',
@@ -1883,7 +1883,7 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ confirmation: input.value.trim() }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.detail || 'Could not delete services');
+        if (!response.ok) throw new Error(data.detail || '无法删除服务');
 
         localStorage.removeItem('dash_order');
         closeDeleteServicesModal();
@@ -1891,18 +1891,18 @@ import Layout from '../layouts/Layout.astro';
         if (successEl) {
           const count = Number(data.deleted_count || 0);
           successEl.textContent = count
-            ? (count === 1 ? '1 service and its stored data deleted.' : `${count} services and their stored data deleted.`)
-            : 'There were no connected services to delete.';
+            ? (count === 1 ? '已删除 1 个服务及其保存的数据。' : `已删除 ${count} 个服务及其保存的数据。`)
+            : '没有可删除的已接入服务。';
           successEl.style.display = 'block';
         }
       } catch (error: any) {
         if (errorEl) {
-          errorEl.textContent = error.message || 'Could not delete services';
+          errorEl.textContent = error.message || '无法删除服务';
           errorEl.style.display = 'block';
         }
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Delete all services';
+        submitBtn.textContent = '删除全部服务';
       }
     });
 
@@ -1912,7 +1912,7 @@ import Layout from '../layouts/Layout.astro';
         try { username = JSON.parse(localStorage.getItem('auth_user') || '{}').username; } catch {}
       }
       const usernameEl = document.getElementById('delete-account-username');
-      if (usernameEl) usernameEl.textContent = username || 'your username';
+      if (usernameEl) usernameEl.textContent = username || '你的用户名';
       const codeGroup = document.getElementById('delete-account-code-group');
       if (codeGroup) codeGroup.style.display = accountHasTwoFactor ? 'flex' : 'none';
       const codeInput = document.getElementById('delete-account-code') as HTMLInputElement;
@@ -1940,14 +1940,14 @@ import Layout from '../layouts/Layout.astro';
       if (errorEl) errorEl.style.display = 'none';
       if (!username || confirmationInput.value.trim() !== username) {
         if (errorEl) {
-          errorEl.textContent = 'Type your username exactly to continue.';
+          errorEl.textContent = '请准确输入用户名以继续。';
           errorEl.style.display = 'block';
         }
         return;
       }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Deleting account…';
+      submitBtn.textContent = '正在删除账户…';
       try {
         const response = await fetch('/api/auth/account', {
           method: 'DELETE',
@@ -1959,7 +1959,7 @@ import Layout from '../layouts/Layout.astro';
           }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.detail || 'Could not delete account');
+        if (!response.ok) throw new Error(data.detail || '无法删除账户');
 
         const subscription = await getExistingPushSubscription().catch(() => null);
         if (subscription) await subscription.unsubscribe().catch(() => false);
@@ -1969,11 +1969,11 @@ import Layout from '../layouts/Layout.astro';
         window.location.href = '/login';
       } catch (error: any) {
         if (errorEl) {
-          errorEl.textContent = error.message || 'Could not delete account';
+          errorEl.textContent = error.message || '无法删除账户';
           errorEl.style.display = 'block';
         }
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Permanently delete account';
+        submitBtn.textContent = '永久删除账户';
       }
     });
 
@@ -2023,20 +2023,20 @@ import Layout from '../layouts/Layout.astro';
     async function refreshPushUI() {
       if (!pushToggleBtn) return;
       if (!vapidPublicKey) {
-        if (pushDescription) pushDescription.textContent = 'Push notifications are not configured on this server (missing VAPID keys).';
+        if (pushDescription) pushDescription.textContent = '服务器未配置推送通知（缺少 VAPID 密钥）。';
         pushToggleBtn.hidden = true;
         if (pushTestBtn) pushTestBtn.hidden = true;
         return;
       }
       if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        if (pushDescription) pushDescription.textContent = "This browser doesn't support push notifications.";
+        if (pushDescription) pushDescription.textContent = "此浏览器不支持推送通知。";
         pushToggleBtn.hidden = true;
         if (pushTestBtn) pushTestBtn.hidden = true;
         return;
       }
       pushToggleBtn.hidden = false;
       const sub = await getExistingPushSubscription();
-      pushToggleBtn.textContent = sub ? 'Disable on this device' : 'Enable on this device';
+      pushToggleBtn.textContent = sub ? '在此设备停用' : '在此设备启用';
       if (pushTestBtn) pushTestBtn.hidden = !sub;
     }
 
@@ -2052,11 +2052,11 @@ import Layout from '../layouts/Layout.astro';
             body: JSON.stringify({ endpoint: existing.endpoint }),
           });
           await existing.unsubscribe();
-          showPushStatus('Disabled on this device.', false);
+          showPushStatus('已在此设备停用。', false);
         } else {
           const permission = await Notification.requestPermission();
           if (permission !== 'granted') {
-            throw new Error('Notification permission was not granted');
+            throw new Error('未获得通知权限');
           }
           const reg = await navigator.serviceWorker.register('/sw.js');
           await navigator.serviceWorker.ready;
@@ -2072,9 +2072,9 @@ import Layout from '../layouts/Layout.astro';
           });
           if (!res.ok) {
             const d = await res.json().catch(() => ({}));
-            throw new Error(d.detail || 'Could not save subscription');
+            throw new Error(d.detail || '无法保存订阅');
           }
-          showPushStatus('Enabled on this device.', false);
+          showPushStatus('已在此设备启用。', false);
         }
       } catch (e: any) {
         showPushStatus(e.message, true);
@@ -2093,9 +2093,9 @@ import Layout from '../layouts/Layout.astro';
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          throw new Error(d.detail || 'Test failed');
+          throw new Error(d.detail || '测试失败');
         }
-        showPushStatus('Test sent — check this device.', false);
+        showPushStatus('测试通知已发送，请在此设备查看。', false);
       } catch (e: any) {
         showPushStatus(e.message, true);
       }

@@ -98,6 +98,14 @@ async def init_db():
                 "ALTER TABLE user_services ADD COLUMN refresh_interval_minutes INTEGER NOT NULL DEFAULT 5"
             )
 
+        # config_version increments on every update_user_service so in-flight
+        # fetch tasks can detect (and discard themselves against) configs the
+        # user changed mid-flight, instead of clobbering them on completion.
+        if "config_version" not in cols:
+            await db.execute(
+                "ALTER TABLE user_services ADD COLUMN config_version INTEGER NOT NULL DEFAULT 1"
+            )
+
         # store_history opts a service into keeping every successful fetch
         # (so usage/spend can be charted over time). Without it only the
         # newest row is kept. Installs that predate the flag were already
@@ -388,24 +396,35 @@ async def update_user_service(
     notify_thresholds: dict | None = None,
     refresh_interval_minutes: int | None = None,
     store_history: bool | None = None,
+    expected_config_version: int | None = None,
 ):
     now = datetime.now(timezone.utc).isoformat()
     # None leaves the stored flag untouched (credential rotation, category
     # moves, older clients), same convention as refresh_interval_minutes.
     store_history_value = None if store_history is None else (1 if store_history else 0)
+    # expected_config_version turns the write into an atomic compare-and-set:
+    # if the config changed since the caller read it (another update landed),
+    # the UPDATE matches no row and returns False instead of clobbering it.
+    version_guard = ""
+    extra_params: list = []
+    if expected_config_version is not None:
+        version_guard = " AND config_version = ?"
+        extra_params = [expected_config_version]
+    write_ok = True
     async with aiosqlite.connect(DB_PATH) as db:
         if notify_thresholds is None:
             # Internal credential rotation and older PUT callers update only
             # fetcher config. Omitting thresholds must preserve both their
             # values and the once-per-crossing armed state.
-            await db.execute(
-                """
+            cursor = await db.execute(
+                f"""
                 UPDATE user_services
                 SET name = ?, config = ?, category_id = ?,
                     refresh_interval_minutes = COALESCE(?, refresh_interval_minutes),
                     store_history = COALESCE(?, store_history),
+                    config_version = config_version + 1,
                     updated_at = ?
-                WHERE id = ? AND user_id = ?
+                WHERE id = ? AND user_id = ?{version_guard}
                 """,
                 (
                     name,
@@ -416,8 +435,10 @@ async def update_user_service(
                     now,
                     service_id,
                     user_id,
+                    *extra_params,
                 ),
             )
+            write_ok = cursor.rowcount > 0
         else:
             normalized_thresholds = notify_thresholds or {}
             async with db.execute(
@@ -427,12 +448,13 @@ async def update_user_service(
                 row = await cursor.fetchone()
             existing_thresholds = json.loads(row[0]) if row and row[0] else {}
 
-            await db.execute(
+            cursor = await db.execute(
                 """
                 UPDATE user_services
                 SET name = ?, config = ?, category_id = ?, notify_thresholds = ?,
                     refresh_interval_minutes = COALESCE(?, refresh_interval_minutes),
                     store_history = COALESCE(?, store_history),
+                    config_version = config_version + 1,
                     updated_at = ?
                 WHERE id = ? AND user_id = ?
                 """,
@@ -448,6 +470,7 @@ async def update_user_service(
                     user_id,
                 ),
             )
+            write_ok = cursor.rowcount > 0
             if existing_thresholds != normalized_thresholds:
                 # A genuinely changed threshold should be free to fire under
                 # the new configuration, even if the old one already fired.
@@ -460,6 +483,7 @@ async def update_user_service(
             # the newest so the dashboard card still has data to show.
             await _prune_usage_history(db, service_id)
         await db.commit()
+        return write_ok
 
 
 async def delete_user_service(service_id: int, user_id: int):
@@ -605,17 +629,36 @@ async def _prune_usage_history(db, user_service_id: int):
     )
 
 
-async def save_service_usage(user_service_id: int, data: dict) -> bool:
+async def save_service_usage(
+    user_service_id: int, data: dict, expected_config_version: int | None = None
+) -> bool:
+    """Append a usage snapshot. With expected_config_version the insert is
+    guarded atomically: it only lands when the service's config_version still
+    matches what the caller fetched with — a config update that landed while
+    the fetch was in flight makes this insert a no-op (returns False)."""
     now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute(
-            """
-            INSERT INTO service_usage_history (user_service_id, data, fetched_at)
-            SELECT ?, ?, ?
-            WHERE EXISTS (SELECT 1 FROM user_services WHERE id = ?)
-            """,
-            (user_service_id, json.dumps(data), now, user_service_id),
-        )
+        if expected_config_version is None:
+            cursor = await db.execute(
+                """
+                INSERT INTO service_usage_history (user_service_id, data, fetched_at)
+                SELECT ?, ?, ?
+                WHERE EXISTS (SELECT 1 FROM user_services WHERE id = ?)
+                """,
+                (user_service_id, json.dumps(data), now, user_service_id),
+            )
+        else:
+            cursor = await db.execute(
+                """
+                INSERT INTO service_usage_history (user_service_id, data, fetched_at)
+                SELECT ?, ?, ?
+                WHERE EXISTS (
+                    SELECT 1 FROM user_services
+                    WHERE id = ? AND config_version = ?
+                )
+                """,
+                (user_service_id, json.dumps(data), now, user_service_id, expected_config_version),
+            )
         inserted = cursor.rowcount > 0
         if inserted:
             async with db.execute(
@@ -628,19 +671,37 @@ async def save_service_usage(user_service_id: int, data: dict) -> bool:
         return inserted
 
 
-async def get_service_usage_history(user_service_id: int, since: str | None = None, limit: int = 1000):
-    """Oldest-first fetch history for charting; capped at the newest `limit` rows."""
+async def get_service_usage_history(
+    user_service_id: int, since: str | None = None, limit: int | None = 1000
+):
+    """Oldest-first fetch history for charting. limit=None fetches the full
+    range with no cap (used for full-sample summaries); otherwise capped at
+    the newest `limit` rows."""
     query = "SELECT data, fetched_at FROM service_usage_history WHERE user_service_id = ?"
     params: list = [user_service_id]
     if since:
         query += " AND fetched_at >= ?"
         params.append(since)
-    query += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
+    query += " ORDER BY id DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(query, params) as cursor:
             rows = await cursor.fetchall()
     return [{"data": json.loads(r[0]), "fetched_at": r[1]} for r in reversed(rows)]
+
+
+async def count_service_usage_history(user_service_id: int, since: str | None = None) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        query = "SELECT COUNT(*) FROM service_usage_history WHERE user_service_id = ?"
+        params: list = [user_service_id]
+        if since:
+            query += " AND fetched_at >= ?"
+            params.append(since)
+        async with db.execute(query, params) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
 
 async def get_latest_service_usage(user_service_id: int):

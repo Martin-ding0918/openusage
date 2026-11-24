@@ -6,23 +6,23 @@ import ServiceManager from '../components/ServiceManager.astro';
 <Layout title="OpenUsage">
   <div class="page-header" id="page-header">
     <div class="page-heading">
-      <p class="page-kicker"><span aria-hidden="true"></span> Dashboard</p>
+      <p class="page-kicker"><span aria-hidden="true"></span> 用量总览</p>
       <div class="header-meta">
         <div class="update-status">
           <span class="update-dot is-loading" aria-hidden="true"></span>
-          <p class="subtitle" id="last-updated">Loading...</p>
+          <p class="subtitle" id="last-updated">加载中…</p>
         </div>
-        <span class="service-total"><strong id="service-count">—</strong> connected</span>
+        <span class="service-total"><strong id="service-count">—</strong> 个服务</span>
       </div>
     </div>
     <div class="header-actions">
       <button id="refresh-btn" class="btn dashboard-action">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
-        <span>Refresh</span>
+        <span>刷新</span>
       </button>
       <button id="add-service-btn" class="btn btn-primary dashboard-action">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-        <span>Add service</span>
+        <span>添加服务</span>
       </button>
     </div>
   </div>
@@ -31,7 +31,7 @@ import ServiceManager from '../components/ServiceManager.astro';
     <div class="grid">
       <div class="empty-card loading-card">
         <span class="loading-orbit" aria-hidden="true"></span>
-        <p class="subtitle">Loading usage data...</p>
+        <p class="subtitle">正在加载用量…</p>
       </div>
     </div>
   </div>
@@ -40,35 +40,38 @@ import ServiceManager from '../components/ServiceManager.astro';
   <div id="curl-modal" class="modal-backdrop" style="display: none;">
     <div class="modal">
       <div class="modal-header">
-        <h3 id="curl-modal-title">Paste new cURL</h3>
+        <h3 id="curl-modal-title">粘贴新的 cURL</h3>
         <button id="curl-modal-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="curl-box">
-          <label>Import from cURL</label>
-          <textarea id="curl-modal-textarea" placeholder="Paste the 'Copy as cURL' request here..."></textarea>
-          <button type="button" id="curl-modal-save-btn" class="btn btn-sm">Save &amp; Refresh</button>
+          <label>从 cURL 导入</label>
+          <textarea id="curl-modal-textarea" placeholder="在此粘贴“复制为 cURL”得到的请求…"></textarea>
+          <button type="button" id="curl-modal-save-btn" class="btn btn-sm">保存并刷新</button>
           <span id="curl-modal-msg" class="msg-hint"></span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Usage history popup -->
+  <!-- 用量历史 popup -->
   <div id="history-modal" class="modal-backdrop" style="display: none;">
     <div class="modal history-modal">
       <div class="modal-header">
-        <h3 id="history-modal-title">Usage history</h3>
+        <h3 id="history-modal-title">用量历史</h3>
         <button id="history-modal-close-btn" class="icon-btn-close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="history-ranges" id="history-ranges">
-          <button type="button" class="btn btn-sm" data-days="1">24h</button>
-          <button type="button" class="btn btn-sm" data-days="7">7d</button>
-          <button type="button" class="btn btn-sm" data-days="30">30d</button>
-          <button type="button" class="btn btn-sm" data-days="0">All</button>
+          <button type="button" class="btn btn-sm" data-hours="1">1 小时</button>
+          <button type="button" class="btn btn-sm" data-hours="3">3 小时</button>
+          <button type="button" class="btn btn-sm" data-hours="6">6 小时</button>
+          <button type="button" class="btn btn-sm" data-hours="24">24 小时</button>
+          <button type="button" class="btn btn-sm" data-hours="168">7 天</button>
+          <button type="button" class="btn btn-sm" data-hours="720">30 天</button>
+          <button type="button" class="btn btn-sm" data-hours="0">全部</button>
         </div>
-        <div id="history-content" class="msg-hint">Loading…</div>
+        <div id="history-content" class="msg-hint">加载中…</div>
       </div>
     </div>
   </div>
@@ -870,13 +873,20 @@ import ServiceManager from '../components/ServiceManager.astro';
   /* flow-root keeps the last chart's bottom margin inside the box, so its
      measured height is the same before and after min-height is applied. */
   #history-content { display: flow-root; transition: opacity 0.15s; }
-  .history-ranges { display: flex; gap: 6px; margin-bottom: 16px; }
+  .history-coverage { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .history-ranges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  @media (max-width: 480px) {
+    .history-ranges .btn { flex: 1 1 auto; min-width: 0; padding-left: 8px; padding-right: 8px; }
+  }
   .history-ranges .btn.active { border-color: var(--accent, currentColor); font-weight: 700; }
   :global(.history-chart) { margin-bottom: 20px; }
   :global(.history-chart h4) { font-size: 13px; margin: 0 0 6px; display: flex; justify-content: space-between; }
   :global(.history-chart svg) { width: 100%; height: auto; display: block; }
   :global(.history-chart .grid) { stroke: var(--border); stroke-width: 1; }
   :global(.history-chart .line) { fill: none; stroke: var(--accent, #6aa5ff); stroke-width: 2; stroke-linejoin: round; }
+  :global(.history-chart .hit) { fill: transparent; cursor: crosshair; }
+  :global(.history-chart .hit:hover) { fill: var(--accent, #6aa5ff); fill-opacity: 0.35; }
+  :global(.history-chart .readout) { font-size: 11px; font-weight: 600; fill: var(--text, currentColor); }
   :global(.history-chart .dot) { fill: var(--accent, #6aa5ff); }
   :global(.history-chart text) { fill: var(--text-muted); font-size: 10px; }
   .curl-box {
@@ -928,16 +938,17 @@ import ServiceManager from '../components/ServiceManager.astro';
   function fmtDate(iso) {
     if (!iso) return '';
     const d = new Date(iso);
-    return d.toLocaleString('en-US', {
-      month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
+    return d.toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai', year: 'numeric',
+      month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
     });
   }
 
   function fmtCountdown(iso) {
     if (!iso) return null;
     const diff = new Date(iso).getTime() - Date.now();
-    if (diff <= 0) return 'Resetting now';
+    if (diff <= 0) return '正在重置';
 
     const totalMins = Math.floor(diff / 60000);
     const days = Math.floor(totalMins / (60 * 24));
@@ -945,18 +956,18 @@ import ServiceManager from '../components/ServiceManager.astro';
     const mins = totalMins % 60;
 
     if (days > 0) {
-      return `${days}d ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`;
+      return `${days} 天 ${hours} 小时 ${mins} 分钟`;
     }
     if (hours > 0) {
-      return `${hours}h ${String(mins).padStart(2, '0')}m`;
+      return `${hours} 小时 ${mins} 分钟`;
     }
-    return `${mins}m`;
+    return `${mins} 分钟`;
   }
 
   function fmtCountdownFull(iso) {
     if (!iso) return null;
     const diff = new Date(iso).getTime() - Date.now();
-    if (diff <= 0) return 'Resetting now';
+    if (diff <= 0) return '正在重置';
 
     const totalMins = Math.floor(diff / 60000);
     const days = Math.floor(totalMins / (60 * 24));
@@ -964,11 +975,11 @@ import ServiceManager from '../components/ServiceManager.astro';
     const mins = totalMins % 60;
 
     const parts = [];
-    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
-    if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
-    if (days === 0 && mins > 0) parts.push(`${mins} min${mins > 1 ? 's' : ''}`);
+    if (days > 0) parts.push(`${days} 天`);
+    if (hours > 0) parts.push(`${hours} 小时`);
+    if (days === 0 && mins > 0) parts.push(`${mins} 分钟`);
 
-    return parts.join(' ') || '1 min';
+    return parts.join(' ') || '不足 1 分钟';
   }
 
   function parseFlexibleDate(val: any): Date | null {
@@ -1139,10 +1150,10 @@ import ServiceManager from '../components/ServiceManager.astro';
         <div class="hero-meta">
           <div class="hero-label">${label}${extra ? ` <span class="lrow-extra">${extra}</span>` : ''}</div>
           ${block.resets_at ? `
-            ${countdown ? `<div class="hero-resets-cap">Resets in</div><div class="hero-resets-val">${countdown}</div>` : ''}
+            ${countdown ? `<div class="hero-resets-cap">距离重置还有</div><div class="hero-resets-val">${countdown}</div>` : ''}
             <div class="hero-resets-date">${fmtDate(block.resets_at)}</div>
           ` : `
-            <div class="hero-resets-idle">${idleText || 'No active session'}</div>
+            <div class="hero-resets-idle">${idleText || '额度重置时间见下方'}</div>
           `}
         </div>
       </div>`;
@@ -1157,7 +1168,7 @@ import ServiceManager from '../components/ServiceManager.astro';
       <div class="lrow">
         <div class="lrow-top">
           <span class="lrow-label">${label}</span>
-          <span class="lrow-pct ${cls}">${100 - pct}% left</span>
+          <span class="lrow-pct ${cls}">剩余 ${100 - pct}%</span>
         </div>
         <div class="bar-wrap">
           <div class="bar-fill ${cls}" style="width:${pct}%"></div>
@@ -1166,7 +1177,7 @@ import ServiceManager from '../components/ServiceManager.astro';
         ${extra ? `<div class="lrow-extra-below">${extra}</div>` : ''}
         ${resetsAt ? `
           <div class="lrow-resets">
-            <div class="lrow-resets-countdown">Resets in ${countdown}</div>
+            <div class="lrow-resets-countdown">距离重置还有 ${countdown}</div>
             <div class="lrow-resets-date">${fmtDate(resetsAt)}</div>
           </div>` : ''}
       </div>`;
@@ -1185,15 +1196,15 @@ import ServiceManager from '../components/ServiceManager.astro';
   }
 
   function planRow(plan: string | null) {
-    if (plan) return row('Plan', plan);
-    return `<div class="row" style="visibility: hidden;" aria-hidden="true"><span class="lbl">Plan</span><span class="val">&nbsp;</span></div>`;
+    if (plan) return row('套餐', plan);
+    return `<div class="row" style="visibility: hidden;" aria-hidden="true"><span class="lbl">套餐</span><span class="val">&nbsp;</span></div>`;
   }
 
   let allServices: any[] = [];
   let allCategories: any[] = [];
 
   // Groups services into their category sections, in category order, with an
-  // "Uncategorized" bucket for services with no (or a deleted) category.
+  // "未分类" bucket for services with no (or a deleted) category.
   // When no categories exist at all, returns one anonymous group so the
   // caller renders a single flat grid -- identical to the pre-categories
   // markup for anyone not using the feature.
@@ -1212,7 +1223,7 @@ import ServiceManager from '../components/ServiceManager.astro';
       }
     }
     const groups = allCategories.map(cat => ({ id: cat.id, name: cat.name, services: byCategory.get(cat.id) || [] }));
-    if (uncategorized.length) groups.push({ id: null, name: 'Uncategorized', services: uncategorized });
+    if (uncategorized.length) groups.push({ id: null, name: '未分类', services: uncategorized });
     return groups;
   }
 
@@ -1220,7 +1231,7 @@ import ServiceManager from '../components/ServiceManager.astro';
     return groupServicesByCategory(services).map(g => {
       const cardsHtml = g.services.length
         ? g.services.map(cardRenderer).join('')
-        : `<div class="category-empty-hint">No services in this category yet — use edit mode to drag one here.</div>`;
+        : `<div class="category-empty-hint">此分类暂无服务，可在管理面板模式下将服务拖入。</div>`;
       const catAttr = g.id ?? '';
 
       if (g.name === null && allCategories.length === 0) {
@@ -1278,7 +1289,7 @@ import ServiceManager from '../components/ServiceManager.astro';
 
   function curlLinkHtml(svcId: number, type: string): string {
     if (!CURL_IMPORT_CONFIG[type]) return '';
-    return `<button type="button" class="stale-curl-link" data-svc-id="${svcId}">Paste new cURL</button>`;
+    return `<button type="button" class="stale-curl-link" data-svc-id="${svcId}">粘贴新的 cURL</button>`;
   }
 
   function serviceAlertHtml(
@@ -1325,14 +1336,14 @@ import ServiceManager from '../components/ServiceManager.astro';
   }
 
   function dragHandleHtml(): string {
-    return `<span class="drag-handle" draggable="false" title="Drag to reorder" aria-label="Drag to reorder">
+    return `<span class="drag-handle" draggable="false" title="拖动排序" aria-label="拖动排序">
       <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 4a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zm5.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4 8a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zm5.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zM4 12a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0zm5.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z"></path></svg>
     </span>`;
   }
 
   function historyButtonHtml(svcId: number | string, name: string): string {
     const safeName = escapeHtml(name);
-    return `<button type="button" class="btn card-action-btn card-history-btn" data-svc-id="${svcId}" data-svc-name="${safeName}" title="Usage history for ${safeName}" aria-label="Usage history for ${safeName}">
+    return `<button type="button" class="btn card-action-btn card-history-btn" data-svc-id="${svcId}" data-svc-name="${safeName}" title="${safeName} 用量历史" aria-label="${safeName} 用量历史">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
     </button>`;
   }
@@ -1340,10 +1351,10 @@ import ServiceManager from '../components/ServiceManager.astro';
   function cardActionsHtml(svcId: number | string, name: string): string {
     const safeName = escapeHtml(name);
     return `<div class="card-actions">
-      <button type="button" class="btn card-action-btn card-edit-btn" data-svc-id="${svcId}" title="Edit ${safeName}" aria-label="Edit ${safeName}">
+      <button type="button" class="btn card-action-btn card-edit-btn" data-svc-id="${svcId}" title="编辑 ${safeName}" aria-label="编辑 ${safeName}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
       </button>
-      <button type="button" class="btn btn-danger card-action-btn card-delete-btn" data-svc-id="${svcId}" title="Delete ${safeName}" aria-label="Delete ${safeName}">
+      <button type="button" class="btn btn-danger card-action-btn card-delete-btn" data-svc-id="${svcId}" title="删除 ${safeName}" aria-label="删除 ${safeName}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
       </button>
     </div>`;
@@ -1365,7 +1376,7 @@ import ServiceManager from '../components/ServiceManager.astro';
           </div>
           <div class="card-controls">
             ${cardActionsHtml(svcId, name)}
-            <div class="status card-status"><span class="badge" id="badge-${svcId}">Fetching...</span></div>
+            <div class="status card-status"><span class="badge" id="badge-${svcId}">正在获取…</span></div>
           </div>
         </div>
         <div class="card-body skeleton-body" id="body-${svcId}">
@@ -1410,17 +1421,17 @@ import ServiceManager from '../components/ServiceManager.astro';
     if (!body || !badge) return;
 
     if (!result.configured) {
-      setBadge(badge, 'Not configured', 'none');
+      setBadge(badge, '未配置', 'none');
       setAccent(svcId, 'none');
-      body.innerHTML = `<p class="notice">This service needs configuration. <button type="button" class="stale-curl-link card-edit-btn" data-svc-id="${svcId}">Edit service</button></p>`;
+      body.innerHTML = `<p class="notice">此服务尚未配置。 <button type="button" class="stale-curl-link card-edit-btn" data-svc-id="${svcId}">编辑服务</button></p>`;
       return;
     }
     if (result.status === 'error') {
-      setBadge(badge, 'Error', 'error');
+      setBadge(badge, '错误', 'error');
       setAccent(svcId, 'error');
       body.innerHTML = serviceAlertHtml(
         'error',
-        'Couldn’t refresh this service',
+        '无法刷新此服务',
         result.error,
         curlLinkHtml(svcId, type)
       );
@@ -1428,15 +1439,15 @@ import ServiceManager from '../components/ServiceManager.astro';
     }
 
     if (result.cached && result.stale_error) {
-      setBadge(badge, 'Stale', 'stale');
+      setBadge(badge, '缓存数据', 'stale');
     } else {
-      setBadge(badge, 'Connected', 'ok');
+      setBadge(badge, '已连接', 'ok');
     }
     const staleWarning = (result.cached && result.stale_error)
       ? serviceAlertHtml(
           'warning',
-          'Showing cached data',
-          `Last updated ${fmtDate(result.fetched_at)}. The live refresh failed: ${result.stale_error}`,
+          '当前显示缓存数据',
+          `上次更新：${fmtDate(result.fetched_at)}。实时刷新失败： ${result.stale_error}`,
           curlLinkHtml(svcId, type)
         )
       : '';
@@ -1447,18 +1458,18 @@ import ServiceManager from '../components/ServiceManager.astro';
       const severities: any[] = [];
       const hasHero = d.five_hour && typeof d.five_hour.utilization === 'number';
       const hero = hasHero ? d.five_hour : d.seven_day;
-      const heroLabel = hasHero ? 'Session (5h)' : 'Weekly';
+      const heroLabel = hasHero ? '会话额度（5 小时）' : '每周额度';
       const heroWindow = hasHero ? 5 * 3600 * 1000 : 7 * 24 * 3600 * 1000;
       const secondary = hasHero ? d.seven_day : null;
       const secondaryWindow = 7 * 24 * 3600 * 1000;
 
       if (hero && typeof hero.utilization === 'number') {
         severities.push(getUsageSeverity(hero.utilization, hero.resets_at, heroWindow));
-        html += heroBlock(heroLabel, hero, hasHero ? 'No active session' : null, heroWindow);
+        html += heroBlock(heroLabel, hero, hasHero ? '额度重置时间见下方' : null, heroWindow);
       }
       if (secondary && typeof secondary.utilization === 'number') {
         severities.push(getUsageSeverity(secondary.utilization, secondary.resets_at, secondaryWindow));
-        html += listRow('Weekly', secondary.utilization, secondary.resets_at, '', secondaryWindow);
+        html += listRow('每周额度', secondary.utilization, secondary.resets_at, '', secondaryWindow);
       }
 
       const currencySymbol = (c: string) => c === 'EUR' ? '€' : c === 'USD' ? '$' : `${c} `;
@@ -1466,16 +1477,16 @@ import ServiceManager from '../components/ServiceManager.astro';
       if (spend?.enabled && spend.used && spend.limit) {
         const fmtMoney = (m: any) => (m.amount_minor / 10 ** m.exponent).toFixed(m.exponent);
         const symbol = currencySymbol(spend.used.currency);
-        html += `<hr class="divider">` + row('Extra usage', `${symbol}${fmtMoney(spend.used)} / ${symbol}${fmtMoney(spend.limit)}`);
+        html += `<hr class="divider">` + row('额外用量', `${symbol}${fmtMoney(spend.used)} / ${symbol}${fmtMoney(spend.limit)}`);
       }
 
       const credits = d.prepaid_credits;
       if (credits?.balance != null) {
         html += `<hr class="divider">`;
         const symbol = currencySymbol(credits.currency);
-        html += row('Credit balance', `${symbol}${credits.balance.toFixed(2)}`, 'big');
+        html += row('余额', `${symbol}${credits.balance.toFixed(2)}`, 'big');
         if (credits.next_expires_at) {
-          html += rowTwoLine('Expires in ' + fmtCountdownFull(credits.next_expires_at), fmtDate(credits.next_expires_at));
+          html += rowTwoLine('距离到期还有 ' + fmtCountdownFull(credits.next_expires_at), fmtDate(credits.next_expires_at));
         }
       }
       body.innerHTML = staleWarning + html;
@@ -1494,16 +1505,16 @@ import ServiceManager from '../components/ServiceManager.astro';
         const limitWindowMs = GEMINI_WINDOW_MS[limit.label] ?? 7 * 24 * 3600 * 1000;
         severities.push(getUsageSeverity(pct, limit.resets_at, limitWindowMs));
         if (i === 0) {
-          html += heroBlock(limit.label ?? 'Limit', { utilization: pct, resets_at: limit.resets_at }, null, limitWindowMs);
+          html += heroBlock(({ Session: '会话额度', Weekly: '每周额度' } as Record<string, string>)[limit.label] ?? limit.label ?? '额度', { utilization: pct, resets_at: limit.resets_at }, null, limitWindowMs);
         } else {
-          html += listRow(limit.label ?? 'Limit', pct, limit.resets_at, '', limitWindowMs);
+          html += listRow(({ Session: '会话额度', Weekly: '每周额度' } as Record<string, string>)[limit.label] ?? limit.label ?? '额度', pct, limit.resets_at, '', limitWindowMs);
         }
       });
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
 
     } else if (type === 'copilot') {
-      const planMap: Record<string, string> = { individual: 'Individual', business: 'Business', enterprise: 'Enterprise' };
+      const planMap: Record<string, string> = { individual: '个人版', business: '商业版', enterprise: '企业版' };
       const severities: any[] = [];
       const windowMs = 30 * 24 * 3600 * 1000;
       let hasHero = false;
@@ -1511,7 +1522,7 @@ import ServiceManager from '../components/ServiceManager.astro';
 
       function quotaBlock(label: string, q: any) {
         if (!q) return '';
-        if (q.unlimited) return row(label, 'Unlimited', 'green');
+        if (q.unlimited) return row(label, '不限量', 'green');
         const pctUsed = Math.round(100 - (q.percent_remaining ?? 0));
         severities.push(getUsageSeverity(pctUsed, d.quota_reset_date, windowMs));
         const extra = `${q.remaining ?? '—'} / ${q.entitlement ?? '—'}`;
@@ -1523,17 +1534,17 @@ import ServiceManager from '../components/ServiceManager.astro';
         const pctUsed = Math.round(100 - pr.percent_remaining);
         severities.push(getUsageSeverity(pctUsed, d.quota_reset_date, windowMs));
         hasHero = true;
-        html += heroBlock('Monthly', { utilization: pctUsed, resets_at: d.quota_reset_date }, null, windowMs);
-        html += listRow('Premium requests', pctUsed, d.quota_reset_date, `${pr.remaining ?? '—'} / ${pr.entitlement ?? '—'}`, windowMs);
+        html += heroBlock('每月额度', { utilization: pctUsed, resets_at: d.quota_reset_date }, null, windowMs);
+        html += listRow('高级请求', pctUsed, d.quota_reset_date, `${pr.remaining ?? '—'} / ${pr.entitlement ?? '—'}`, windowMs);
       } else if (pr?.unlimited) {
-        html += row('Premium requests', 'Unlimited', 'green');
+        html += row('高级请求', '不限量', 'green');
       }
 
-      html += quotaBlock('Chat messages', d.chat);
-      html += quotaBlock('Completions', d.completions);
+      html += quotaBlock('聊天消息', d.chat);
+      html += quotaBlock('代码补全', d.completions);
 
       if (d.quota_reset_date && !hasHero) {
-        html += `<hr class="divider">` + rowTwoLine('Resets in ' + fmtCountdownFull(d.quota_reset_date), fmtDate(d.quota_reset_date));
+        html += `<hr class="divider">` + rowTwoLine('距离重置还有 ' + fmtCountdownFull(d.quota_reset_date), fmtDate(d.quota_reset_date));
       }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
@@ -1547,11 +1558,12 @@ import ServiceManager from '../components/ServiceManager.astro';
         const topped = parseFloat(usd.topped_up_balance ?? 0).toFixed(2);
         const granted = parseFloat(usd.granted_balance ?? 0).toFixed(2);
         const available = d.is_available !== false;
-        html += row('Balance', `$${total}`, 'big') +
+        const currencySymbol = usd.currency === 'CNY' ? '¥' : usd.currency === 'USD' ? '$' : `${usd.currency || ''} `;
+        html += row('余额', `${currencySymbol}${total}`, 'big') +
           `<hr class="divider">` +
-          row('Paid credits', `$${topped}`) +
-          row('Free credits', `$${granted}`) +
-          row('Status', available ? '● Available' : '● Unavailable', available ? 'green' : 'red');
+          row('充值余额', `${currencySymbol}${topped}`) +
+          row('赠送余额', `${currencySymbol}${granted}`) +
+          row('状态', available ? '● 可用' : '● 不可用', available ? 'green' : 'red');
       }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, 'ok');
@@ -1565,16 +1577,16 @@ import ServiceManager from '../components/ServiceManager.astro';
 
       if (sub?.plan_title) {
         const planExtra = sub.trust_tier ? `${sub.trust_tier}` : '';
-        html += row('Plan', sub.plan_title + (planExtra ? ` (${planExtra})` : ''));
+        html += row('套餐', sub.plan_title + (planExtra ? ` (${planExtra})` : ''));
       } else {
         html += planRow(null);
       }
 
       if (cb?.total_available != null) {
-        html += row('Credit balance', `${symbol}${cb.total_available.toFixed(2)}`, 'big');
+        html += row('余额', `${symbol}${cb.total_available.toFixed(2)}`, 'big');
         html += `<hr class="divider">`;
       }
-      html += row('Spend this month', `${symbol}${spend}`, cb?.total_available != null ? '' : 'big');
+      html += row('本月消费', `${symbol}${spend}`, cb?.total_available != null ? '' : 'big');
 
       const items = Object.entries(d.by_line_item ?? {}).sort((a: any, b: any) => b[1] - a[1]);
       if (items.length) {
@@ -1583,11 +1595,11 @@ import ServiceManager from '../components/ServiceManager.astro';
           html += row(label, `${symbol}${value.toFixed(2)}`);
         });
       }
-      if (d.period_start) html += `<hr class="divider">` + row('Since', fmtDate(d.period_start));
+      if (d.period_start) html += `<hr class="divider">` + row('统计起点', fmtDate(d.period_start));
       const sessionWarning = d.session_error
         ? serviceAlertHtml(
             'warning',
-            'Some account data is unavailable',
+            '部分账户数据暂不可用',
             d.session_error,
             curlLinkHtml(svcId, type)
           )
@@ -1600,25 +1612,25 @@ import ServiceManager from '../components/ServiceManager.astro';
       const severities: any[] = [];
       const hasHero = d.five_hour && typeof d.five_hour.utilization === 'number';
       const hero = hasHero ? d.five_hour : d.seven_day;
-      const heroLabel = hasHero ? 'Codex (5h)' : 'Codex (Weekly)';
+      const heroLabel = hasHero ? 'Codex（5 小时）' : 'Codex（每周）';
       const heroWindow = hasHero ? 5 * 3600 * 1000 : 7 * 24 * 3600 * 1000;
       const secondary = hasHero ? d.seven_day : null;
       const secondaryWindow = 7 * 24 * 3600 * 1000;
 
       if (hero && typeof hero.utilization === 'number') {
         severities.push(getUsageSeverity(hero.utilization, hero.resets_at, heroWindow));
-        html += heroBlock(heroLabel, hero, hasHero ? 'No active session' : null, heroWindow);
+        html += heroBlock(heroLabel, hero, hasHero ? '额度重置时间见下方' : null, heroWindow);
       }
       if (secondary && typeof secondary.utilization === 'number') {
         severities.push(getUsageSeverity(secondary.utilization, secondary.resets_at, secondaryWindow));
-        html += listRow('Codex weekly', secondary.utilization, secondary.resets_at, '', secondaryWindow);
+        html += listRow('Codex 每周额度', secondary.utilization, secondary.resets_at, '', secondaryWindow);
       }
 
-      if (d.email) html += `<hr class="divider">` + row('Account', d.email);
+      if (d.email) html += `<hr class="divider">` + row('账户', d.email);
       if (d.has_active_subscription != null) {
-        html += row('Subscription', d.has_active_subscription ? '● Active' : '● Inactive', d.has_active_subscription ? 'green' : 'red');
+        html += row('订阅', d.has_active_subscription ? '● 生效中' : '● 未生效', d.has_active_subscription ? 'green' : 'red');
       }
-      if (d.will_renew != null) html += row('Auto-renew', d.will_renew ? 'On' : 'Off');
+      if (d.will_renew != null) html += row('自动续订', d.will_renew ? '开启' : '关闭');
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
 
@@ -1627,18 +1639,18 @@ import ServiceManager from '../components/ServiceManager.astro';
       const severities: any[] = [];
       if (typeof d.percent_used === 'number') {
         severities.push(getUsageSeverity(d.percent_used, d.resets_at ?? null, null));
-        html += heroBlock('Free usage', { utilization: d.percent_used, resets_at: d.resets_at ?? null }, null, null);
+        html += heroBlock('免费额度', { utilization: d.percent_used, resets_at: d.resets_at ?? null }, null, null);
       }
       if (d.balance != null) {
         html += `<hr class="divider">`;
-        html += row('Usage credits', `$${Number(d.balance).toFixed(2)}`, 'big');
+        html += row('用量余额', `$${Number(d.balance).toFixed(2)}`, 'big');
       }
       // ollama.com's usage report (replaced the old free-usage meter / credit balance)
       if (d.cost_month != null) {
-        html += row('Cost this month', `$${Number(d.cost_month).toFixed(2)}`, 'big');
+        html += row('本月消费', `$${Number(d.cost_month).toFixed(2)}`, 'big');
       }
       if (d.requests_month != null) {
-        html += row('Requests this month', Number(d.requests_month).toLocaleString());
+        html += row('本月请求数', Number(d.requests_month).toLocaleString());
       }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
@@ -1650,11 +1662,11 @@ import ServiceManager from '../components/ServiceManager.astro';
       const severities: any[] = [];
       const meterExtra = (m: any) =>
         (typeof m.used === 'number' && typeof m.limit === 'number')
-          ? `$${m.used.toFixed(2)} of $${m.limit.toFixed(2)}` : '';
+          ? `$${m.used.toFixed(2)} / $${m.limit.toFixed(2)}` : '';
       const OC_METERS: [string, string, number][] = [
-        ['five_hour', '5-hour window', 5 * 3600 * 1000],
-        ['week', 'Weekly', 7 * 24 * 3600 * 1000],
-        ['month', 'Monthly', 30 * 24 * 3600 * 1000],
+        ['five_hour', '5 小时额度', 5 * 3600 * 1000],
+        ['week', '每周额度', 7 * 24 * 3600 * 1000],
+        ['month', '每月额度', 30 * 24 * 3600 * 1000],
       ];
       let hasHero = false;
       OC_METERS.forEach(([key, label, windowMs]) => {
@@ -1670,10 +1682,10 @@ import ServiceManager from '../components/ServiceManager.astro';
       });
       if (d.balance != null) {
         if (hasHero) html += `<hr class="divider">`;
-        html += row('Zen credits', `$${Number(d.balance).toFixed(2)}`, 'big');
+        html += row('Zen 余额', `$${Number(d.balance).toFixed(2)}`, 'big');
       }
       if (d.cost_month != null) {
-        html += row('Spend this month', `$${Number(d.cost_month).toFixed(2)}`);
+        html += row('本月消费', `$${Number(d.cost_month).toFixed(2)}`);
       }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
@@ -1690,7 +1702,7 @@ import ServiceManager from '../components/ServiceManager.astro';
         if (typeof b.budget !== 'number') return '';
         const sym = symbol(b.currency ?? 'EUR');
         const used = b.budget * (b.percent_used / 100);
-        return `${sym}${used.toFixed(2)} of ${sym}${b.budget.toFixed(2)}`;
+        return `${sym}${used.toFixed(2)} / ${sym}${b.budget.toFixed(2)}`;
       };
       let hasHero = false;
       (['vibe', 'api'] as const).forEach((key) => {
@@ -1707,7 +1719,7 @@ import ServiceManager from '../components/ServiceManager.astro';
       });
       if (d.payg_enabled != null) {
         if (hasHero) html += `<hr class="divider">`;
-        html += row('Pay-as-you-go', d.payg_enabled ? 'On' : 'Off');
+        html += row('按量付费', d.payg_enabled ? '开启' : '关闭');
       }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
@@ -1731,10 +1743,13 @@ import ServiceManager from '../components/ServiceManager.astro';
       const planField = fields.find((f: any) => f.type === 'plan');
       let html = '';
       if (planField && planField.value != null && String(planField.value).trim() !== '') {
-        html += row(escapeHtml(planField.label || 'Plan'), escapeHtml(planField.value));
+        html += row(escapeHtml(planField.label || '套餐'), escapeHtml(planField.value));
+      } else {
+        html += planRow(null);
       }
+      let previousWasBig = false;
       if (!fields.length) {
-        html += '<p class="notice">No fields matched — check the field paths in Settings.</p>';
+        html += '<p class="notice">未匹配到字段，请检查服务配置中的字段路径。</p>';
       } else {
         fields.forEach((f: any, idx: number) => {
           const ftype = f.type || 'text';
@@ -1742,6 +1757,11 @@ import ServiceManager from '../components/ServiceManager.astro';
           const isProgressLike = PROGRESS_FIELD_TYPES.has(ftype);
           const label = escapeHtml(isProgressLike ? normalizeProgressLabel(f.label || '') : f.label);
           const bigCls = ftype === 'balance' ? 'big' : '';
+          const isOrdinaryRow = !isProgressLike && !['percentage', 'percentage_fraction', 'percentage_fraction_ring', 'reset_date', 'reset_day'].includes(ftype);
+          if (previousWasBig && isOrdinaryRow && !bigCls) {
+            html += '<hr class="divider">';
+          }
+          previousWasBig = !!bigCls;
 
           if (isProgressLike) {
             let used = Number(f.value);
@@ -1754,7 +1774,7 @@ import ServiceManager from '../components/ServiceManager.astro';
               const formatValue = (value: number) => Number.isInteger(value)
                 ? value.toLocaleString()
                 : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-              const usageDetail = `${formatValue(used)} of ${formatValue(total)} used`;
+              const usageDetail = `已用 ${formatValue(used)} / ${formatValue(total)}`;
               severities.push(getUsageSeverity(usedPct, resetsAt, null));
               if (BAR_PROGRESS_FIELD_TYPES.has(ftype)) {
                 html += listRow(label, usedPct, resetsAt, usageDetail, null);
@@ -1785,10 +1805,14 @@ import ServiceManager from '../components/ServiceManager.astro';
           } else if (ftype === 'percentage_fraction_ring') {
             const pct = Math.max(0, Math.min(100, (Number(f.value) || 0) * 100));
             severities.push(getUsageSeverity(pct, null, null));
-            html += heroBlock(label, { utilization: pct, resets_at: null }, null, null);
+            html += heroBlock(label, { utilization: pct, resets_at: resetsAt }, null, null);
+
+          } else if (ftype === 'status') {
+            const available = f.value === 1 || f.value === '1' || f.value === true;
+            html += row(label, available ? '● 可用' : '● 不可用', available ? 'green' : 'red');
 
           } else if (ftype === 'boolean') {
-            html += row(label, f.value === true || f.value === 'true' ? 'Yes' : 'No');
+            html += row(label, f.value === true || f.value === 'true' ? '是' : '否');
 
           } else if (ftype === 'currency') {
             const num = Number(f.value);
@@ -1808,8 +1832,8 @@ import ServiceManager from '../components/ServiceManager.astro';
             } else {
               const iso = d2.toISOString();
               const countdown = fmtCountdownFull(iso);
-              const resetText = d2.getTime() > Date.now() ? `Resets in ${countdown}` : countdown;
-              html += rowTwoLine(resetText, fmtDate(iso));
+              const resetText = d2.getTime() > Date.now() ? `距离重置还有 ${countdown}` : countdown;
+              html += rowTwoLine(`${label} · ${resetText}`, fmtDate(iso));
             }
 
           } else if (ftype === 'reset_day') {
@@ -1819,8 +1843,8 @@ import ServiceManager from '../components/ServiceManager.astro';
             } else {
               const iso = d2.toISOString();
               const countdown = fmtCountdownFull(iso);
-              const resetText = d2.getTime() > Date.now() ? `Resets in ${countdown}` : countdown;
-              html += rowTwoLine(resetText, fmtDate(iso));
+              const resetText = d2.getTime() > Date.now() ? `距离重置还有 ${countdown}` : countdown;
+              html += rowTwoLine(`${label} · ${resetText}`, fmtDate(iso));
             }
 
           } else if (ftype === 'date') {
@@ -1837,7 +1861,7 @@ import ServiceManager from '../components/ServiceManager.astro';
           } else {
             let val = f.value;
             if (ftype === 'number' && typeof val === 'number') {
-              val = Number.isInteger(val) ? val.toString() : val.toFixed(2);
+              val = Number.isInteger(val) ? val.toLocaleString('zh-CN') : val.toFixed(2);
             } else if (val == null) {
               val = '—';
             }
@@ -1872,7 +1896,7 @@ import ServiceManager from '../components/ServiceManager.astro';
     const hint = grid.querySelector('.category-empty-hint');
     if (hasCards && hint) hint.remove();
     if (!hasCards && !hint) {
-      grid.innerHTML = '<div class="category-empty-hint">No services in this category yet — use edit mode to drag one here.</div>';
+      grid.innerHTML = '<div class="category-empty-hint">此分类暂无服务，可在管理面板模式下将服务拖入。</div>';
     }
   }
 
@@ -2030,11 +2054,11 @@ import ServiceManager from '../components/ServiceManager.astro';
           </div>
           <div class="card-controls">
             ${cardActionsHtml(svcId, name)}
-            <div class="status card-status"><span class="badge error">Error</span></div>
+            <div class="status card-status"><span class="badge error">错误</span></div>
           </div>
         </div>
         <div class="card-body">
-          ${serviceAlertHtml('error', 'Couldn’t load usage', msg)}
+          ${serviceAlertHtml('error', '无法加载用量', msg)}
         </div>`;
     }
   }
@@ -2093,7 +2117,7 @@ import ServiceManager from '../components/ServiceManager.astro';
               </div>
             </div>
 
-            <h2 class="welcome-title">All your AI capacity, <span class="brand-accent">one clear view.</span></h2>
+            <h2 class="welcome-title">所有 AI 额度，<span class="brand-accent">一目了然。</span></h2>
             <p class="welcome-description">
               Connect the services you use to see active limits, weekly quotas, reset windows, spend, and credit balances together.
             </p>
@@ -2103,32 +2127,32 @@ import ServiceManager from '../components/ServiceManager.astro';
                 <div class="feature-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-                <h4>Real-Time Monitoring</h4>
-                <p>Instant visibility into 5-hour session limits, weekly usage caps, and credit balances.</p>
+                <h4>实时监控</h4>
+                <p>实时查看 5 小时会话额度、每周额度和账户余额。</p>
               </div>
 
               <div class="feature-card">
                 <div class="feature-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </div>
-                <h4>Smart Burn Alerts</h4>
-                <p>Automatic rate-based severity calculations alert you before you run out of credits.</p>
+                <h4>消耗预警</h4>
+                <p>根据消耗速度判断风险，在额度耗尽前提醒。</p>
               </div>
 
               <div class="feature-card">
                 <div class="feature-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                 </div>
-                <h4>Multi-Account Support</h4>
-                <p>Add and manage multiple instances per AI provider side-by-side effortlessly.</p>
+                <h4>多账户管理</h4>
+                <p>并排查看和管理同一服务商的多个账户。</p>
               </div>
             </div>
 
             <div class="welcome-actions">
-              <button type="button" class="btn btn-primary btn-lg open-service-manager-btn">Connect your first service</button>
+              <button type="button" class="btn btn-primary btn-lg open-service-manager-btn">接入第一个服务</button>
             </div>
           </div>`;
-        setUpdateStatus('No active services', 'idle');
+        setUpdateStatus('暂无服务', 'idle');
         return;
       }
 
@@ -2158,12 +2182,12 @@ import ServiceManager from '../components/ServiceManager.astro';
           if (badge) {
             badge.className = 'badge none';
             badge.innerHTML = `
-              <svg class="spinner-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Updating...`;
+              <svg class="spinner-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>更新中…`;
           }
         });
       }
 
-      setUpdateStatus('Updating usage...', 'loading');
+      setUpdateStatus('正在更新用量…', 'loading');
 
       // 4. Fetch usage for each service independently in parallel and update cards as they complete!
       let completedCount = 0;
@@ -2187,23 +2211,23 @@ import ServiceManager from '../components/ServiceManager.astro';
               }
             }
           } else {
-            updateCardError(svc.id, svc.service_type, svc.name, 'Failed to fetch usage');
+            updateCardError(svc.id, svc.service_type, svc.name, '获取用量失败');
           }
         } catch (e) {
-          updateCardError(svc.id, svc.service_type, svc.name, 'Network error');
+          updateCardError(svc.id, svc.service_type, svc.name, '网络错误');
         } finally {
           completedCount++;
           if (completedCount === services.length) {
-            setUpdateStatus(`Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`, 'ready');
+            setUpdateStatus(`更新于 ${new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false, hour: '2-digit', minute: '2-digit' })}`, 'ready');
           }
         }
       });
 
     } catch (err) {
-      setUpdateStatus('Backend unavailable', 'error');
+      setUpdateStatus('后端服务不可用', 'error');
       grid.innerHTML = `
         <div class="empty-card" style="grid-column: 1 / -1;">
-          <p class="subtitle" style="color: var(--red);">Failed to connect to OpenUsage backend API</p>
+          <p class="subtitle" style="color: var(--red);">无法连接 OpenUsage 后端接口</p>
         </div>`;
     }
   }
@@ -2211,7 +2235,7 @@ import ServiceManager from '../components/ServiceManager.astro';
   document.getElementById('edit-toggle')?.addEventListener('click', function (this: HTMLElement) {
     const isEditMode = this.classList.toggle('active');
     this.setAttribute('aria-pressed', String(isEditMode));
-    this.setAttribute('title', isEditMode ? 'Finish managing dashboard' : 'Manage dashboard');
+    this.setAttribute('title', isEditMode ? '完成管理' : '管理面板');
     document.body.classList.toggle('edit-mode', isEditMode);
     const grid = document.getElementById('dashboard-grid');
     if (grid) {
@@ -2226,7 +2250,7 @@ import ServiceManager from '../components/ServiceManager.astro';
 
   async function deleteServiceFromDashboard(serviceId: number) {
     const service = allServices.find((candidate: any) => candidate.id === serviceId);
-    if (!service || !confirm(`Delete “${service.name}”? This removes its saved configuration and usage history.`)) return;
+    if (!service || !confirm(`确定删除“${service.name}”吗？这会删除已保存的配置和用量历史。`)) return;
 
     const token = localStorage.getItem('auth_token');
     if (!token) return;
@@ -2235,7 +2259,7 @@ import ServiceManager from '../components/ServiceManager.astro';
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error('Could not delete service');
+      if (!response.ok) throw new Error('无法删除服务');
 
       const savedOrder = getSavedOrder().filter(id => id !== String(serviceId));
       localStorage.setItem('dash_order', JSON.stringify(savedOrder));
@@ -2243,13 +2267,14 @@ import ServiceManager from '../components/ServiceManager.astro';
       if (dashboard) dashboard.innerHTML = '';
       await loadDashboard(false);
     } catch (error: any) {
-      alert(error.message || 'Could not delete service');
+      alert(error.message || '无法删除服务');
     }
   }
 
-  // ---- Usage history popup ----
+  // ---- 用量历史 popup ----
   let historySvcId: number | null = null;
-  let historyDays = 7;
+  let historyHours = 168;
+  let historyReqSeq = 0; // 每次请求递增：过期响应不得覆盖弹窗（切换/关闭后旧返回一律丢弃）
 
   function historyChartSvg(points: { t: string; v: number }[], unit: string): string {
     const W = 600, H = 180, L = 44, R = 10, T = 10, B = 22;
@@ -2263,17 +2288,37 @@ import ServiceManager from '../components/ServiceManager.astro';
     const sx = (x: number) => L + ((x - xmin) / (xmax - xmin)) * (W - L - R);
     const sy = (y: number) => T + (1 - (y - ymin) / (ymax - ymin)) * (H - T - B);
     const fmtY = (y: number) => (unit === '%' ? `${Math.round(y)}%` : y.toFixed(2));
-    const fmtX = (x: number) => new Date(x).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const fmtX = (x: number) => new Date(x).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false, month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const path = points.map((p, i) => `${i ? 'L' : 'M'}${sx(xs[i]).toFixed(1)},${sy(p.v).toFixed(1)}`).join(' ');
     const grid = [0, 0.5, 1].map((f) => {
       const y = ymin + (ymax - ymin) * f;
       return `<line class="grid" x1="${L}" x2="${W - R}" y1="${sy(y)}" y2="${sy(y)}"/><text x="${L - 6}" y="${sy(y) + 3}" text-anchor="end">${fmtY(y)}</text>`;
     }).join('');
-    const dots = points.length <= 60
-      ? points.map((p, i) => `<circle class="dot" cx="${sx(xs[i]).toFixed(1)}" cy="${sy(p.v).toFixed(1)}" r="2.5"><title>${escapeHtml(fmtX(xs[i]))}: ${fmtY(p.v)}${unit === '%' ? '' : ' ' + escapeHtml(unit)}</title></circle>`).join('')
-      : '';
-    return `<svg viewBox="0 0 ${W} ${H}" role="img">${grid}<path class="line" d="${path}"/>${dots}
+    const fmtV = (v: number) => (unit === '%' ? `${Math.round(v)}%` : `${v.toFixed(2)} ${unit}`);
+    const showDots = points.length <= 60;
+    const dots = points.map((p, i) => {
+      const cx = sx(xs[i]).toFixed(1), cy = sy(p.v).toFixed(1);
+      const label = escapeHtml(`${fmtX(xs[i])} — ${fmtV(p.v)}`);
+      return (showDots ? `<circle class="dot" cx="${cx}" cy="${cy}" r="2.5"/>` : '')
+        + `<circle class="hit" cx="${cx}" cy="${cy}" r="7" data-label="${label}"><title>${label}</title></circle>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" role="img">${grid}<path class="line" d="${path}"/>${dots}<text class="readout" x="${W - R}" y="${T + 2}" text-anchor="end">${escapeHtml(fmtV(ys[ys.length - 1]))}</text>
       <text x="${L}" y="${H - 6}">${escapeHtml(fmtX(xmin))}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${escapeHtml(fmtX(xmax))}</text></svg>`;
+  }
+
+  // How much was consumed across the shown range. Balances fall as you spend
+  // (rises are top-ups, ignored); spend/percent figures rise (drops are resets,
+  // ignored). Custom fields have no known meaning, so they get no total.
+  function historySpent(serviceType: string, key: string, s: any): string {
+    if (serviceType === 'custom' || s.points.length < 2) return '';
+    const isBalance = /balance|budget/.test(key);
+    let total = 0;
+    for (let i = 1; i < s.points.length; i++) {
+      const d = s.points[i].v - s.points[i - 1].v;
+      if (isBalance ? d < 0 : d > 0) total += Math.abs(d);
+    }
+    if (s.unit === '%') return `+${Math.round(total)}% used in range`;
+    return `${total.toFixed(2)} ${escapeHtml(s.unit)} spent in range`;
   }
 
   // The modal may only grow while it is open: after each render, pin its
@@ -2288,6 +2333,7 @@ import ServiceManager from '../components/ServiceManager.astro';
   async function loadHistory() {
     const box = document.getElementById('history-content');
     if (!box || historySvcId == null) return;
+    const reqId = ++historyReqSeq;
     // Keep the previous charts on screen (dimmed) while the next range loads and
     // never let the box shrink, so the modal doesn't collapse and re-grow.
     const hasCharts = !!box.querySelector('.history-chart');
@@ -2295,59 +2341,83 @@ import ServiceManager from '../components/ServiceManager.astro';
       box.style.opacity = '0.5';
     } else {
       box.className = 'msg-hint';
-      box.textContent = 'Loading…';
+      box.textContent = '加载中…';
     }
     document.querySelectorAll('#history-ranges .btn').forEach((b) =>
-      b.classList.toggle('active', Number((b as HTMLElement).dataset.days) === historyDays));
-    const qs = historyDays ? `?since=${encodeURIComponent(new Date(Date.now() - historyDays * 86400000).toISOString())}` : '';
+      b.classList.toggle('active', Number((b as HTMLElement).dataset.hours) === historyHours));
+    const qs = historyHours ? `?since=${encodeURIComponent(new Date(Date.now() - historyHours * 3600000).toISOString())}` : '';
     try {
       const res = await fetch(`/api/user-services/${historySvcId}/history${qs}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
       });
+      if (reqId !== historyReqSeq) return; // 已有更新的请求接管弹窗
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = await res.json();
+      if (reqId !== historyReqSeq) return;
       if (!body.store_history) {
-        box.textContent = 'History is off for this service. Edit the service and tick "Store usage history" to start recording.';
+        box.textContent = '此服务尚未启用历史记录。请编辑服务并勾选“保留用量历史”以开始记录。';
         return;
       }
-      const entries = Object.values(body.series || {}) as any[];
+      const entries = Object.entries(body.series || {}) as [string, any][];
       if (!entries.length) {
-        box.textContent = body.history.length
+        const total = body.coverage?.total_entries ?? 0;
+        box.textContent = total
           ? (body.service_type === 'custom'
-            ? 'No fields are tracked. Edit the service and tick "Track history" on the fields you want charted.'
-            : 'This service type has no chartable figures yet.')
-          : 'No history recorded yet. Data points appear after each refresh.';
+            ? '未选择跟踪字段，请编辑服务并勾选需要绘图的字段。'
+            : '此服务类型暂无可绘制曲线的数值。')
+          : '暂无历史记录，刷新后会生成数据点。';
         return;
       }
+      const cov = body.coverage || { first: null, last: null, total_entries: 0, truncated: false };
+      const fmtShort = (iso: any) => {
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? '—' :
+          `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+      const covFirst = cov.first ? fmtShort(cov.first) : null;
+      const covLast = cov.last ? fmtShort(cov.last) : null;
+      const covTxt = covFirst && covLast ? `覆盖 ${covFirst} ~ ${covLast}` : '覆盖范围未知';
+      const truncTxt = cov.truncated ? '（数据超出单次上限，仅含最近部分）' : '';
+      const covLine = `<div class="history-coverage">${covTxt} · 全量 ${cov.total_entries ?? 0} 条采样${truncTxt}</div>`;
       box.className = '';
-      box.innerHTML = entries.map((s: any) => {
+      box.innerHTML = covLine + entries.map(([key, s]) => {
         const last = s.points[s.points.length - 1];
         const lastTxt = s.unit === '%' ? `${Math.round(last.v)}%` : `${last.v.toFixed(2)} ${escapeHtml(s.unit)}`;
-        return `<div class="history-chart"><h4><span>${escapeHtml(s.label)}</span><span>${lastTxt} · ${s.points.length} pts</span></h4>${historyChartSvg(s.points, s.unit)}</div>`;
+        const spent = historySpent(body.service_type, key, s);
+        const avg = s.summary && s.summary.avg != null
+          ? (s.unit === '%' ? `${s.summary.avg.toFixed(2)}%` : `${s.summary.avg.toFixed(2)} ${escapeHtml(s.unit)}`)
+          : null;
+        const avgTxt = avg ? ` · 均值 ${avg}` : '';
+        return `<div class="history-chart"><h4><span>${escapeHtml(s.label)}</span><span>${lastTxt}${spent ? ' · ' + spent : ''}${avgTxt} · 图示 ${s.points.length}/${s.summary.count} 点</span></h4>${historyChartSvg(s.points, s.unit)}</div>`;
       }).join('');
     } catch (e: any) {
+      if (reqId !== historyReqSeq) return;
       box.className = 'msg-hint';
-      box.textContent = `Could not load history (${e.message}).`;
+      box.textContent = `无法加载历史记录（${e.message}）。`;
     } finally {
-      box.style.opacity = '';
-      lockHistoryModalHeight();
+      if (reqId === historyReqSeq) {
+        box.style.opacity = '';
+        lockHistoryModalHeight();
+      }
     }
   }
 
   function openHistoryModal(svcId: number, name: string) {
     historySvcId = svcId;
+    historyReqSeq++; // 切换服务：作废仍在途的旧请求
     const content = document.getElementById('history-content');
     if (content) { content.style.opacity = ''; content.innerHTML = ''; }
     const dlg = document.querySelector('#history-modal .history-modal') as HTMLElement | null;
     if (dlg) dlg.style.minHeight = '';
     const title = document.getElementById('history-modal-title');
-    if (title) title.textContent = `${name} — usage history`;
+    if (title) title.textContent = `${name} — 用量历史`;
     const modal = document.getElementById('history-modal');
     if (modal) modal.style.display = 'flex';
     void loadHistory();
   }
 
   function closeHistoryModal() {
+    historyReqSeq++; // 关闭弹窗：作废在途请求
     const modal = document.getElementById('history-modal');
     if (modal) modal.style.display = 'none';
     historySvcId = null;
@@ -2357,10 +2427,16 @@ import ServiceManager from '../components/ServiceManager.astro';
   document.getElementById('history-modal')?.addEventListener('click', (e: MouseEvent) => {
     if (e.target === e.currentTarget) closeHistoryModal();
   });
+  document.getElementById('history-content')?.addEventListener('mouseover', (e: MouseEvent) => {
+    const hit = (e.target as Element).closest?.('.hit');
+    if (!hit) return;
+    const ro = hit.closest('svg')?.querySelector('.readout');
+    if (ro) ro.textContent = hit.getAttribute('data-label') || '';
+  });
   document.getElementById('history-ranges')?.addEventListener('click', (e: MouseEvent) => {
-    const btn = (e.target as HTMLElement).closest('[data-days]') as HTMLElement | null;
+    const btn = (e.target as HTMLElement).closest('[data-hours]') as HTMLElement | null;
     if (!btn) return;
-    historyDays = Number(btn.dataset.days);
+    historyHours = Number(btn.dataset.hours);
     void loadHistory();
   });
 
@@ -2440,7 +2516,7 @@ import ServiceManager from '../components/ServiceManager.astro';
     const svc = allServices.find((s: any) => s.id === svcId);
     const importCfg = svc ? CURL_IMPORT_CONFIG[svc.service_type] : null;
     if (!svc || !importCfg) {
-      if (msg) { msg.textContent = 'Unsupported service type'; msg.className = 'msg-hint error'; }
+      if (msg) { msg.textContent = '不支持的服务类型'; msg.className = 'msg-hint error'; }
       return;
     }
 
@@ -2455,7 +2531,7 @@ import ServiceManager from '../components/ServiceManager.astro';
         body: JSON.stringify({ curl }),
       });
       const parsed = await parseRes.json();
-      if (parsed.status !== 'ok') throw new Error(parsed.error || 'Failed to parse cURL');
+      if (parsed.status !== 'ok') throw new Error(parsed.error || 'cURL 解析失败');
 
       const newConfig = importCfg.apply(parsed, svc.config || {});
       const putRes = await fetch(`/api/user-services/${svcId}`, {
@@ -2465,14 +2541,14 @@ import ServiceManager from '../components/ServiceManager.astro';
       });
       if (!putRes.ok) {
         const d = await putRes.json();
-        throw new Error(d.detail || 'Failed to save service');
+        throw new Error(d.detail || '服务保存失败');
       }
 
       closeCurlModal();
       await loadDashboard(true);
     } catch (e: any) {
       if (msg) {
-        msg.textContent = e.message || 'Failed to parse cURL';
+        msg.textContent = e.message || 'cURL 解析失败';
         msg.className = 'msg-hint error';
       }
     }

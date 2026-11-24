@@ -14,11 +14,10 @@ TOKEN_HEADERS = {
     "Editor-Version": "vscode/1.104.1",
 }
 
-# Single-user local app: one device flow can be in progress at a time.
-_pending_flow: dict = {}
-
 
 async def start_device_flow() -> dict:
+    """Start a GitHub device authorization flow. Pure — no server-side state;
+    the caller owns per-user flow state (see main._copilot_flows)."""
     async with httpx.AsyncClient() as client:
         r = await client.post(
             DEVICE_CODE_URL,
@@ -29,29 +28,24 @@ async def start_device_flow() -> dict:
         r.raise_for_status()
         data = r.json()
 
-    _pending_flow["device_code"] = data["device_code"]
-    _pending_flow["interval"] = data.get("interval", 5)
-
     return {
         "device_code": data["device_code"],
         "user_code": data["user_code"],
         "verification_uri": data["verification_uri"],
         "expires_in": data.get("expires_in", 900),
-        "interval": _pending_flow["interval"],
+        "interval": data.get("interval", 5),
     }
 
 
-async def poll_device_flow(device_code: str = None) -> dict:
-    code = device_code or _pending_flow.get("device_code")
-    if not code:
-        return {"status": "error", "error": "No sign-in in progress"}
-
+async def poll_device_flow(device_code: str) -> dict:
+    """Pure GitHub token polling; the caller owns per-user flow state and is
+    responsible for cleaning it up on terminal results."""
     async with httpx.AsyncClient() as client:
         r = await client.post(
             ACCESS_TOKEN_URL,
             data={
                 "client_id": CLIENT_ID,
-                "device_code": code,
+                "device_code": device_code,
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             },
             headers={"Accept": "application/json"},
@@ -64,21 +58,14 @@ async def poll_device_flow(device_code: str = None) -> dict:
     if error == "authorization_pending":
         return {"status": "pending"}
     if error == "slow_down":
-        _pending_flow["interval"] = data.get("interval", _pending_flow.get("interval", 5) + 5)
-        return {"status": "pending", "interval": _pending_flow["interval"]}
+        return {"status": "pending", "interval": data.get("interval", 5)}
     if error == "expired_token":
-        _pending_flow.clear()
         return {"status": "expired"}
     if error == "access_denied":
-        _pending_flow.clear()
         return {"status": "denied"}
     if error:
-        _pending_flow.clear()
         return {"status": "error", "error": error}
-
-    _pending_flow.clear()
-    token = data.get("access_token")
-    return {"status": "ok", "token": token}
+    return {"status": "ok", "token": data.get("access_token")}
 
 
 def _quota(q: dict) -> dict:

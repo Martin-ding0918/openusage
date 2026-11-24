@@ -2,68 +2,68 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Login - OpenUsage">
+<Layout title="登录 - OpenUsage">
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
         <img src="/favicon.svg?v=20260924" alt="OpenUsage Logo" width="42" height="42" />
-        <h2>Welcome to OpenUsage</h2>
-        <p class="auth-subtitle">Monitor and track your AI service quotas</p>
+        <h2>欢迎使用 OpenUsage</h2>
+        <p class="auth-subtitle">查看和跟踪 AI 服务额度</p>
       </div>
 
       <div id="oidc-block" style="display: none;">
-        <a href="/api/oidc/authorize" class="btn btn-primary oidc-btn" id="oidc-btn">Sign in with SSO</a>
-        <div class="auth-divider"><span>or</span></div>
+        <a href="/api/oidc/authorize" class="btn btn-primary oidc-btn" id="oidc-btn">通过 SSO 登录</a>
+        <div class="auth-divider"><span>或</span></div>
       </div>
 
       <div class="auth-tabs" id="auth-tabs">
-        <button type="button" class="tab-btn active" id="tab-login">Log In</button>
-        <button type="button" class="tab-btn" id="tab-register">Create Account</button>
+        <button type="button" class="tab-btn active" id="tab-login">登录</button>
+        <button type="button" class="tab-btn" id="tab-register">创建账户</button>
       </div>
 
       <div id="account-disabled-msg" class="notice-disabled" style="display: none;">
-        Account creation has been disabled by the administrator.
+        管理员已关闭账户注册。
       </div>
 
       <form id="auth-form" class="auth-form">
         <div id="auth-error" class="auth-error" style="display: none;"></div>
 
         <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" placeholder="Enter your username" required autocomplete="username" />
+          <label for="username">用户名</label>
+          <input type="text" id="username" name="username" placeholder="输入用户名" required autocomplete="username" />
         </div>
 
         <div class="form-group" id="email-group" style="display: none;">
-          <label for="email">Email</label>
+          <label for="email">邮箱</label>
           <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" />
         </div>
 
         <div class="form-group">
           <div class="password-label-row">
-            <label for="password">Password</label>
-            <a href="/forgot-password" id="forgot-password-link" style="display: none;">Forgot password?</a>
+            <label for="password">密码</label>
+            <a href="/forgot-password" id="forgot-password-link" style="display: none;">忘记密码？</a>
           </div>
           <div class="password-input-wrap">
-            <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password" />
-            <button type="button" id="toggle-pw-btn" class="toggle-pw-btn" aria-label="Toggle password visibility" title="Show password">
+            <input type="password" id="password" name="password" placeholder="输入密码" required autocomplete="current-password" />
+            <button type="button" id="toggle-pw-btn" class="toggle-pw-btn" aria-label="切换密码可见性" title="显示密码">
               <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.77 21.77 0 0 1-3.22 4.44M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
           </div>
         </div>
 
-        <button type="submit" id="submit-btn" class="btn btn-primary">Log In</button>
+        <button type="submit" id="submit-btn" class="btn btn-primary">登录</button>
       </form>
 
       <form id="twofactor-form" class="auth-form" style="display: none;">
         <div id="twofactor-error" class="auth-error" style="display: none;"></div>
-        <p class="subtitle">Enter the 6-digit code from your authenticator app, or a recovery code.</p>
+        <p class="subtitle">请输入身份验证器中的 6 位验证码或恢复码。</p>
         <div class="form-group">
-          <label for="twofactor-code">Code</label>
+          <label for="twofactor-code">验证码</label>
           <input type="text" id="twofactor-code" name="code" placeholder="123456" required autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
         </div>
-        <button type="submit" id="twofactor-submit-btn" class="btn btn-primary">Verify</button>
-        <button type="button" id="twofactor-cancel-btn" class="btn">Cancel</button>
+        <button type="submit" id="twofactor-submit-btn" class="btn btn-primary">验证</button>
+        <button type="button" id="twofactor-cancel-btn" class="btn">取消</button>
       </form>
     </div>
   </div>
@@ -287,7 +287,7 @@ import Layout from '../layouts/Layout.astro';
         if (data.enabled) {
           const block = document.getElementById('oidc-block');
           const btn = document.getElementById('oidc-btn');
-          if (btn) btn.textContent = `Sign in with ${data.provider_name}`;
+          if (btn) btn.textContent = `通过 ${data.provider_name} 登录`;
           if (block) block.style.display = 'block';
           if (data.disable_password_login) {
             document.getElementById('auth-tabs')?.style.setProperty('display', 'none');
@@ -335,11 +335,11 @@ import Layout from '../layouts/Layout.astro';
       if (register) {
         tabLogin?.classList.remove('active');
         tabRegister?.classList.add('active');
-        if (submitBtn) submitBtn.textContent = 'Create Account';
+        if (submitBtn) submitBtn.textContent = '创建账户';
       } else {
         tabRegister?.classList.remove('active');
         tabLogin?.classList.add('active');
-        if (submitBtn) submitBtn.textContent = 'Log In';
+        if (submitBtn) submitBtn.textContent = '登录';
       }
     }
 
@@ -387,7 +387,7 @@ import Layout from '../layouts/Layout.astro';
       passwordInput.type = isPw ? 'text' : 'password';
       if (eyeIcon) eyeIcon.style.display = isPw ? 'none' : 'block';
       if (eyeOffIcon) eyeOffIcon.style.display = isPw ? 'block' : 'none';
-      togglePwBtn.title = isPw ? 'Hide password' : 'Show password';
+      togglePwBtn.title = isPw ? '隐藏密码' : '显示密码';
     });
 
     document.getElementById('auth-form')?.addEventListener('submit', async (e) => {
@@ -420,7 +420,7 @@ import Layout from '../layouts/Layout.astro';
 
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.detail || 'Authentication failed');
+          throw new Error(data.detail || '登录验证失败');
         }
 
         if (data.requires_2fa) {
@@ -433,7 +433,7 @@ import Layout from '../layouts/Layout.astro';
         window.location.href = '/';
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'An error occurred';
+          errorEl.textContent = err.message || '发生错误';
           errorEl.style.display = 'block';
         }
       } finally {
@@ -460,14 +460,14 @@ import Layout from '../layouts/Layout.astro';
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.detail || 'Verification failed');
+          throw new Error(data.detail || '验证失败');
         }
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         window.location.href = '/';
       } catch (err: any) {
         if (errorEl) {
-          errorEl.textContent = err.message || 'An error occurred';
+          errorEl.textContent = err.message || '发生错误';
           errorEl.style.display = 'block';
         }
       } finally {

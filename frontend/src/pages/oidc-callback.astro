@@ -2,18 +2,18 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Signing in - OpenUsage">
+<Layout title="正在登录 - OpenUsage">
   <div class="auth-container">
     <div class="auth-card">
-      <p class="subtitle" id="oidc-status">Signing you in…</p>
+      <p class="subtitle" id="oidc-status">正在登录…</p>
       <div id="oidc-error" class="auth-error" style="display: none;"></div>
 
       <form id="twofactor-form" class="auth-form" style="display: none;">
         <div class="form-group">
-          <label for="twofactor-code">Two-factor code</label>
+          <label for="twofactor-code">双重认证验证码</label>
           <input type="text" id="twofactor-code" name="code" placeholder="123456" required autocomplete="one-time-code" autocapitalize="none" spellcheck="false" />
         </div>
-        <button type="submit" class="btn btn-primary">Verify</button>
+        <button type="submit" class="btn btn-primary">验证</button>
       </form>
     </div>
   </div>
@@ -91,13 +91,13 @@ import Layout from '../layouts/Layout.astro';
     async function finishWithToken(token: string) {
       try {
         const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Could not verify session');
+        if (!res.ok) throw new Error('无法验证登录会话');
         const data = await res.json();
         localStorage.setItem('auth_token', token);
         localStorage.setItem('auth_user', JSON.stringify(data.user));
         window.location.href = '/';
       } catch (err: any) {
-        showError(err.message || 'Sign-in failed');
+        showError(err.message || '登录失败');
       }
     }
 
@@ -112,10 +112,10 @@ import Layout from '../layouts/Layout.astro';
           body: JSON.stringify({ challenge_token: pendingChallengeToken, code: codeInput.value.trim() }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Verification failed');
+        if (!res.ok) throw new Error(data.detail || '验证失败');
         await finishWithToken(data.token);
       } catch (err: any) {
-        showError(err.message || 'Verification failed');
+        showError(err.message || '验证失败');
       }
     });
 
@@ -133,13 +133,13 @@ import Layout from '../layouts/Layout.astro';
         pendingChallengeToken = challengeToken;
         const statusEl = document.getElementById('oidc-status');
         const form = document.getElementById('twofactor-form');
-        if (statusEl) statusEl.textContent = 'Enter your two-factor code to finish signing in.';
+        if (statusEl) statusEl.textContent = '输入双重认证验证码以完成登录。';
         if (form) form.style.display = 'flex';
         document.getElementById('twofactor-code')?.focus();
         return;
       }
       if (!token) {
-        showError('Sign-in failed');
+        showError('登录失败');
         return;
       }
       finishWithToken(token);
