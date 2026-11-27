@@ -85,6 +85,13 @@ from fetchers.mistral import fetch_mistral
 from fetchers.chatgpt import fetch_chatgpt
 from fetchers.ollama_cloud import fetch_ollama_cloud
 from fetchers.opencode import fetch_opencode
+from fetchers.antigravity import (
+    fetch_antigravity,
+    start_oauth_flow as start_antigravity_oauth,
+    exchange_oauth_code as exchange_antigravity_oauth,
+    get_oauth_server_config as get_antigravity_oauth_config,
+    parse_antigravity_credentials,
+)
 from fetchers.generic import fetch_generic, test_generic
 
 ENABLE_ACCOUNT_CREATION = os.getenv("ENABLE_ACCOUNT_CREATION", "true").lower() in ("true", "1", "yes")
@@ -102,6 +109,7 @@ STALE_DATA_MULTIPLIER = 3
 SERVICE_FETCHERS = {
     "claude": fetch_claude,
     "gemini": fetch_gemini,
+    "antigravity": fetch_antigravity,
     "deepseek": fetch_deepseek,
     "copilot": fetch_copilot,
     "openai": fetch_openai,
@@ -225,7 +233,7 @@ async def _live_fetch_and_save(user_service: dict) -> dict:
         logger.info("Starting live fetch for %s (%s, id=%s)...", svc_name, svc_type, svc_id)
         if svc_type == "gemini":
             result = await fetcher(config, on_config_update=_on_config_update, service_id=svc_id)
-        elif svc_type == "chatgpt":
+        elif svc_type in ("chatgpt", "antigravity"):
             result = await fetcher(config, on_config_update=_on_config_update)
         else:
             result = await fetcher(config)
@@ -1151,6 +1159,76 @@ class CopilotPollItem(BaseModel):
 async def copilot_device_poll(item: Optional[CopilotPollItem] = None):
     dev_code = item.device_code if item else None
     return await poll_device_flow(dev_code)
+
+
+# Antigravity OAuth (PKCE) & Token Import Endpoints
+class AntigravityOAuthStartRequest(BaseModel):
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    redirect_uri: Optional[str] = None
+
+
+class AntigravityOAuthExchangeRequest(BaseModel):
+    callback_input: str
+    state: Optional[str] = None
+    client_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    redirect_uri: Optional[str] = None
+
+
+class AntigravityImportRequest(BaseModel):
+    raw: str
+
+
+@app.get("/api/antigravity/oauth/config")
+async def antigravity_oauth_config(user: dict = Depends(get_current_user)):
+    return get_antigravity_oauth_config()
+
+
+@app.post("/api/antigravity/oauth/start")
+async def antigravity_oauth_start(
+    req: Optional[AntigravityOAuthStartRequest] = None,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        return start_antigravity_oauth(
+            client_id=req.client_id if req else None,
+            client_secret=req.client_secret if req else None,
+            redirect_uri=req.redirect_uri if req else None,
+        )
+    except ValueError as e:
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/api/antigravity/oauth/exchange")
+async def antigravity_oauth_exchange(
+    req: AntigravityOAuthExchangeRequest,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        return await exchange_antigravity_oauth(
+            callback_input=req.callback_input,
+            state=req.state,
+            client_id=req.client_id,
+            client_secret=req.client_secret,
+            redirect_uri=req.redirect_uri,
+        )
+    except ValueError as e:
+        return {"status": "error", "error": str(e)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@app.post("/api/antigravity/import-token")
+async def antigravity_import_token(
+    req: AntigravityImportRequest,
+    user: dict = Depends(get_current_user),
+):
+    try:
+        parsed = parse_antigravity_credentials(req.raw)
+        return {"status": "ok", **parsed}
+    except ValueError as e:
+        return {"status": "error", "error": str(e)}
 
 
 # Push notification endpoints. There's no separate "enabled" flag on the

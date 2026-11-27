@@ -11,6 +11,7 @@ keep both in sync if a fetcher's data shape changes.
 APPLICABLE_THRESHOLDS = {
     "claude": ("session", "weekly"),
     "gemini": ("session", "weekly"),
+    "antigravity": ("session", "weekly"),
     "chatgpt": ("session", "weekly"),
     "copilot": ("monthly",),
     "mistral": ("monthly",),
@@ -88,6 +89,45 @@ def extract_usage_percentages(service_type: str, data: dict) -> dict:
             if pct is not None:
                 out[bucket] = pct
 
+    elif service_type == "antigravity":
+        session_pcts = []
+        weekly_pcts = []
+        for limit in _antigravity_limits(data):
+            pct = _num(limit.get("percent_used"))
+            if pct is None:
+                continue
+            window = (limit.get("window") or "").strip().lower()
+            if window in ("5h", "session"):
+                session_pcts.append(pct)
+            elif window in ("weekly", "week"):
+                weekly_pcts.append(pct)
+        if session_pcts:
+            out["session"] = max(session_pcts)
+        if weekly_pcts:
+            out["weekly"] = max(weekly_pcts)
+
+    return out
+
+
+def _antigravity_limits(data: dict) -> list[dict]:
+    limits = data.get("limits")
+    if isinstance(limits, list) and limits:
+        return [item for item in limits if isinstance(item, dict)]
+    out = []
+    for group in data.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        group_name = (group.get("name") or group.get("id") or "").strip()
+        for bucket in group.get("buckets") or []:
+            if not isinstance(bucket, dict):
+                continue
+            label = (bucket.get("label") or bucket.get("window") or "").strip()
+            out.append({
+                "id": bucket.get("id") or f"{group.get('id', 'quota')}-{bucket.get('window', 'quota')}",
+                "window": bucket.get("window") or "",
+                "label": f"{group_name} · {label}" if group_name and label else (label or group_name),
+                "percent_used": bucket.get("percent_used"),
+            })
     return out
 
 
@@ -103,7 +143,16 @@ def extract_history_metrics(service_type: str, data: dict) -> dict:
     for key, pct in extract_usage_percentages(service_type, data).items():
         out[key] = {"label": _PERCENT_LABELS.get(key, key), "unit": "%", "value": pct}
 
-    if service_type == "deepseek":
+    if service_type == "antigravity":
+        for limit in _antigravity_limits(data):
+            pct = _num(limit.get("percent_used"))
+            bid = (limit.get("id") or "").strip()
+            label = (limit.get("label") or bid).strip()
+            if pct is None or not bid:
+                continue
+            out[f"bucket:{bid}"] = {"label": label, "unit": "%", "value": pct}
+
+    elif service_type == "deepseek":
         infos = data.get("balance_infos") or []
         info = next((i for i in infos if i.get("currency") == "USD"), infos[0] if infos else None)
         try:

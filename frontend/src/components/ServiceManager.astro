@@ -22,6 +22,7 @@
               <option value="custom">Custom API</option>
               <option value="claude">Claude (Anthropic)</option>
               <option value="gemini">Google Gemini</option>
+              <option value="antigravity">Google Antigravity</option>
               <option value="deepseek">DeepSeek</option>
               <option value="copilot">GitHub Copilot</option>
               <option value="openai">OpenAI</option>
@@ -93,6 +94,47 @@
               <input type="hidden" id="gemini-at-token" />
               <input type="hidden" id="gemini-bl" />
               <input type="hidden" id="gemini-sid" />
+            </div>
+          </div>
+
+          <!-- Config Form: Google Antigravity -->
+          <div id="config-antigravity" class="config-section" style="display: none;">
+            <div class="device-flow-box">
+              <button type="button" id="antigravity-oauth-start-btn" class="btn btn-sm">Generate Google Sign-In Link</button>
+              <span id="antigravity-server-oauth-hint" class="msg-hint" style="display: block; margin-top: 6px;"></span>
+              <div id="antigravity-oauth-info" style="display: none;" class="device-info">
+                <p>1. Open <a id="antigravity-oauth-url" href="#" target="_blank" rel="noopener">Google Sign-In</a> and authorize your account.</p>
+                <p class="msg-hint">2. Copy the redirected <code>http://localhost:...</code> URL from your browser address bar (connection refused is expected on remote/Docker hosts) and paste it below:</p>
+                <input type="text" id="antigravity-oauth-callback" placeholder="http://localhost:51121/oauth-callback?state=...&code=..." style="margin-top: 6px;" />
+                <button type="button" id="antigravity-oauth-exchange-btn" class="btn btn-sm" style="margin-top: 8px;">Complete Sign-In</button>
+              </div>
+              <span id="antigravity-oauth-msg" class="msg-hint" style="display: block; margin-top: 6px;"></span>
+            </div>
+            <div class="curl-box">
+              <label>Or Import Refresh Token / Credential JSON</label>
+              <textarea id="antigravity-import-raw" placeholder="Paste a refresh token (1//...) or JSON (acp_token.json, oauth_creds.json, antigravity-accounts.json)..."></textarea>
+              <button type="button" id="antigravity-import-btn" class="btn btn-sm">Parse Credentials</button>
+              <span id="antigravity-import-msg" class="msg-hint"></span>
+            </div>
+            <div class="form-group">
+              <label for="antigravity-refresh-token">Refresh Token</label>
+              <input type="password" id="antigravity-refresh-token" placeholder="1//..." />
+              <input type="hidden" id="antigravity-access-token" />
+              <input type="hidden" id="antigravity-token-expires-at" />
+              <input type="hidden" id="antigravity-email" />
+            </div>
+            <div class="form-group">
+              <label for="antigravity-client-id">OAuth Client ID <span class="msg-hint">(optional if set on server)</span></label>
+              <input type="text" id="antigravity-client-id" placeholder="....apps.googleusercontent.com" />
+            </div>
+            <div class="form-group">
+              <label for="antigravity-client-secret">OAuth Client Secret <span class="msg-hint">(optional if set on server)</span></label>
+              <input type="password" id="antigravity-client-secret" placeholder="Optional OAuth client secret" />
+            </div>
+            <div class="form-group">
+              <label for="antigravity-project-id">Project ID <span class="msg-hint">(optional, auto-detected)</span></label>
+              <input type="text" id="antigravity-project-id" placeholder="aicode-consumers" />
+              <p class="msg-hint">Tracks Gemini, Claude &amp; GPT, and Argon 5-hour &amp; weekly quotas via Cloud Code.</p>
             </div>
           </div>
 
@@ -1016,6 +1058,7 @@
       { id: 'custom', name: 'Custom API', icon: '/icons/custom.svg', defaultName: 'Custom API' },
       { id: 'claude', name: 'Claude (Anthropic)', icon: '/icons/claude.svg', defaultName: 'Claude Pro' },
       { id: 'gemini', name: 'Google Gemini', icon: '/icons/gemini.svg', defaultName: 'Gemini Advanced' },
+      { id: 'antigravity', name: 'Google Antigravity', icon: '/icons/antigravity.svg', defaultName: 'Antigravity' },
       { id: 'chatgpt', name: 'ChatGPT', icon: '/icons/chatgpt.svg', defaultName: 'ChatGPT Plus' },
       { id: 'copilot', name: 'GitHub Copilot', icon: '/icons/copilot-white.svg', defaultName: 'GitHub Copilot' },
       { id: 'openai', name: 'OpenAI', icon: '/icons/openai.svg', defaultName: 'OpenAI API' },
@@ -1320,6 +1363,7 @@
     const APPLICABLE_THRESHOLDS: Record<string, string[]> = {
       claude: ['session', 'weekly'],
       gemini: ['session', 'weekly'],
+      antigravity: ['session', 'weekly'],
       chatgpt: ['session', 'weekly'],
       copilot: ['monthly'],
       mistral: ['monthly'],
@@ -1371,6 +1415,31 @@
       const editId = (document.getElementById('edit-service-id') as HTMLInputElement).value;
       if (!editId && nameInput) {
         nameInput.value = SERVICE_TEMPLATE_MAP[type]?.defaultName || 'My Service';
+      }
+      if (type === 'antigravity') {
+        loadAntigravityServerOAuthHint();
+      }
+    }
+
+    let antigravityOAuthState: string | null = null;
+    async function loadAntigravityServerOAuthHint() {
+      const hint = document.getElementById('antigravity-server-oauth-hint');
+      if (!hint) return;
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const r = await fetch('/api/antigravity/oauth/config', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) return;
+        const cfg = await r.json();
+        if (cfg.has_server_client_id) {
+          hint.textContent = 'Server OAuth client is configured — you can leave Client ID / Secret blank.';
+        } else {
+          hint.textContent = 'Set ANTIGRAVITY_OAUTH_CLIENT_ID on the server, or fill OAuth Client ID below before signing in.';
+        }
+      } catch {
+        // Non-fatal UI hint
       }
     }
 
@@ -1582,6 +1651,13 @@
         (document.getElementById('gemini-at-token') as HTMLInputElement).value = cfg.gemini_at_token || '';
         (document.getElementById('gemini-bl') as HTMLInputElement).value = cfg.gemini_bl || '';
         (document.getElementById('gemini-sid') as HTMLInputElement).value = cfg.gemini_sid || '';
+        (document.getElementById('antigravity-refresh-token') as HTMLInputElement).value = cfg.antigravity_refresh_token || '';
+        (document.getElementById('antigravity-access-token') as HTMLInputElement).value = cfg.antigravity_access_token || '';
+        (document.getElementById('antigravity-token-expires-at') as HTMLInputElement).value = cfg.antigravity_token_expires_at || '';
+        (document.getElementById('antigravity-client-id') as HTMLInputElement).value = cfg.antigravity_client_id || '';
+        (document.getElementById('antigravity-client-secret') as HTMLInputElement).value = cfg.antigravity_client_secret || '';
+        (document.getElementById('antigravity-project-id') as HTMLInputElement).value = cfg.antigravity_project_id || '';
+        (document.getElementById('antigravity-email') as HTMLInputElement).value = cfg.antigravity_email || '';
         (document.getElementById('deepseek-key') as HTMLInputElement).value = cfg.deepseek_api_key || '';
         (document.getElementById('copilot-token') as HTMLInputElement).value = cfg.copilot_token || '';
         (document.getElementById('openai-admin-key') as HTMLInputElement).value = cfg.openai_admin_key || '';
@@ -1638,6 +1714,10 @@
         document.querySelectorAll('#service-form input[type="text"], #service-form input[type="password"], #service-form textarea').forEach((el: any) => {
           if (el.id !== 'edit-service-id') el.value = '';
         });
+        ['antigravity-access-token', 'antigravity-token-expires-at', 'antigravity-email'].forEach((id) => {
+          const el = document.getElementById(id) as HTMLInputElement | null;
+          if (el) el.value = '';
+        });
         (document.getElementById('custom-method') as HTMLSelectElement).value = 'POST';
         const fieldsList = document.getElementById('custom-fields-list');
         if (fieldsList) fieldsList.innerHTML = '';
@@ -1648,12 +1728,20 @@
         (document.getElementById('notify-monthly-threshold') as HTMLInputElement).value = '';
       }
 
+      antigravityOAuthState = null;
+      const agOAuthInfo = document.getElementById('antigravity-oauth-info');
+      if (agOAuthInfo) agOAuthInfo.style.display = 'none';
+      const agCb = document.getElementById('antigravity-oauth-callback') as HTMLInputElement | null;
+      if (agCb) agCb.value = '';
+      const agImportRaw = document.getElementById('antigravity-import-raw') as HTMLTextAreaElement | null;
+      if (agImportRaw) agImportRaw.value = '';
+
       resetPasswordToggle('custom-api-key', 'custom-api-key-toggle-btn');
 
       const testResultEl = document.getElementById('custom-test-result');
       if (testResultEl) testResultEl.innerHTML = '';
 
-      ['claude-curl-msg', 'gemini-curl-msg', 'openai-curl-msg', 'chatgpt-curl-msg', 'ollama_cloud-curl-msg', 'opencode-curl-msg']
+      ['claude-curl-msg', 'gemini-curl-msg', 'openai-curl-msg', 'chatgpt-curl-msg', 'ollama_cloud-curl-msg', 'opencode-curl-msg', 'antigravity-oauth-msg', 'antigravity-import-msg']
         .forEach((id) => {
           const message = document.getElementById(id);
           if (message) {
@@ -2186,6 +2274,130 @@
       }
     });
 
+    // Antigravity OAuth (PKCE) & Token Import handlers
+    document.getElementById('antigravity-oauth-start-btn')?.addEventListener('click', async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      const msg = document.getElementById('antigravity-oauth-msg');
+      const infoBox = document.getElementById('antigravity-oauth-info');
+      const urlEl = document.getElementById('antigravity-oauth-url') as HTMLAnchorElement | null;
+      const clientId = (document.getElementById('antigravity-client-id') as HTMLInputElement).value.trim();
+      const clientSecret = (document.getElementById('antigravity-client-secret') as HTMLInputElement).value.trim();
+      try {
+        const r = await fetch('/api/antigravity/oauth/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            client_id: clientId || null,
+            client_secret: clientSecret || null,
+          }),
+        });
+        const res = await r.json();
+        if (res.status === 'ok' && res.auth_url) {
+          antigravityOAuthState = res.state || null;
+          if (urlEl) urlEl.href = res.auth_url;
+          if (infoBox) infoBox.style.display = 'block';
+          if (msg) {
+            msg.textContent = 'Sign-in link generated. Complete Google login, then paste the redirected localhost URL.';
+            msg.className = 'msg-hint';
+          }
+        } else {
+          throw new Error(res.error || 'Failed to generate sign-in link');
+        }
+      } catch (e: any) {
+        if (msg) {
+          msg.textContent = e.message || 'Failed to start Antigravity OAuth flow';
+          msg.className = 'msg-hint error';
+        }
+      }
+    });
+
+    document.getElementById('antigravity-oauth-exchange-btn')?.addEventListener('click', async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      const msg = document.getElementById('antigravity-oauth-msg');
+      const callbackInput = (document.getElementById('antigravity-oauth-callback') as HTMLInputElement).value.trim();
+      const clientId = (document.getElementById('antigravity-client-id') as HTMLInputElement).value.trim();
+      const clientSecret = (document.getElementById('antigravity-client-secret') as HTMLInputElement).value.trim();
+      if (!callbackInput) {
+        if (msg) {
+          msg.textContent = 'Paste the redirected localhost URL or authorization code first.';
+          msg.className = 'msg-hint error';
+        }
+        return;
+      }
+      try {
+        const r = await fetch('/api/antigravity/oauth/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            callback_input: callbackInput,
+            state: antigravityOAuthState,
+            client_id: clientId || null,
+            client_secret: clientSecret || null,
+          }),
+        });
+        const res = await r.json();
+        if (res.status === 'ok') {
+          antigravityOAuthState = null;
+          if (res.refresh_token) (document.getElementById('antigravity-refresh-token') as HTMLInputElement).value = res.refresh_token;
+          if (res.access_token) (document.getElementById('antigravity-access-token') as HTMLInputElement).value = res.access_token;
+          if (res.expires_at) (document.getElementById('antigravity-token-expires-at') as HTMLInputElement).value = res.expires_at;
+          if (res.project_id) (document.getElementById('antigravity-project-id') as HTMLInputElement).value = res.project_id;
+          if (res.email) (document.getElementById('antigravity-email') as HTMLInputElement).value = res.email;
+          if (msg) {
+            const who = [res.email, res.plan].filter(Boolean).join(' · ');
+            msg.textContent = who ? `Authorized (${who})! Click Save Service below.` : 'Authorized! Click Save Service below.';
+            msg.className = 'msg-hint success';
+          }
+        } else {
+          throw new Error(res.error || 'Token exchange failed');
+        }
+      } catch (e: any) {
+        if (msg) {
+          msg.textContent = e.message || 'Token exchange failed';
+          msg.className = 'msg-hint error';
+        }
+      }
+    });
+
+    document.getElementById('antigravity-import-btn')?.addEventListener('click', async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      const raw = (document.getElementById('antigravity-import-raw') as HTMLTextAreaElement).value;
+      const msg = document.getElementById('antigravity-import-msg');
+      try {
+        const r = await fetch('/api/antigravity/import-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ raw }),
+        });
+        const res = await r.json();
+        if (res.status === 'ok') {
+          if (res.refresh_token) (document.getElementById('antigravity-refresh-token') as HTMLInputElement).value = res.refresh_token;
+          if (res.access_token) (document.getElementById('antigravity-access-token') as HTMLInputElement).value = res.access_token;
+          if (res.expires_at) (document.getElementById('antigravity-token-expires-at') as HTMLInputElement).value = res.expires_at;
+          if (res.client_id) (document.getElementById('antigravity-client-id') as HTMLInputElement).value = res.client_id;
+          if (res.client_secret) (document.getElementById('antigravity-client-secret') as HTMLInputElement).value = res.client_secret;
+          if (res.project_id) (document.getElementById('antigravity-project-id') as HTMLInputElement).value = res.project_id;
+          if (res.email) (document.getElementById('antigravity-email') as HTMLInputElement).value = res.email;
+          if (msg) {
+            msg.textContent = res.refresh_token
+              ? 'Credentials parsed! Click Save Service below.'
+              : 'Access token parsed (short-lived; add a refresh token for automatic renewal).';
+            msg.className = 'msg-hint success';
+          }
+        } else {
+          throw new Error(res.error || 'Failed to parse credentials');
+        }
+      } catch (e: any) {
+        if (msg) {
+          msg.textContent = e.message || 'Failed to parse credentials';
+          msg.className = 'msg-hint error';
+        }
+      }
+    });
+
     // Save Form
     document.getElementById('service-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2207,6 +2419,16 @@
           gemini_at_token: (document.getElementById('gemini-at-token') as HTMLInputElement).value.trim(),
           gemini_bl: (document.getElementById('gemini-bl') as HTMLInputElement).value.trim(),
           gemini_sid: (document.getElementById('gemini-sid') as HTMLInputElement).value.trim(),
+        };
+      } else if (type === 'antigravity') {
+        config = {
+          antigravity_refresh_token: (document.getElementById('antigravity-refresh-token') as HTMLInputElement).value.trim(),
+          antigravity_access_token: (document.getElementById('antigravity-access-token') as HTMLInputElement).value.trim(),
+          antigravity_token_expires_at: (document.getElementById('antigravity-token-expires-at') as HTMLInputElement).value.trim(),
+          antigravity_client_id: (document.getElementById('antigravity-client-id') as HTMLInputElement).value.trim(),
+          antigravity_client_secret: (document.getElementById('antigravity-client-secret') as HTMLInputElement).value.trim(),
+          antigravity_project_id: (document.getElementById('antigravity-project-id') as HTMLInputElement).value.trim(),
+          antigravity_email: (document.getElementById('antigravity-email') as HTMLInputElement).value.trim(),
         };
       } else if (type === 'deepseek') {
         config = {

@@ -64,6 +64,7 @@
 | --- | --- | --- |
 | Claude | Usage limits, plan, and prepaid-credit balance when available | Browser cURL import |
 | Google Gemini | Session and weekly usage limits | Browser cURL import |
+| Google Antigravity | Gemini, Claude & GPT, and Argon 5-hour and weekly quota pools | Google OAuth (PKCE) or Refresh Token / JSON import |
 | ChatGPT | Plan, subscription status, and Codex usage windows when available | Browser cURL import |
 | DeepSeek | Account balance | API key |
 | GitHub Copilot | Plan, quota reset date, premium requests, chat, and completions | GitHub device login or token |

@@ -519,6 +519,7 @@ import ServiceManager from '../components/ServiceManager.astro';
 
   :global(.claude-bg)   { background: color-mix(in srgb, var(--claude) 18%, var(--surface)); }
   :global(.gemini-bg)   { background: color-mix(in srgb, var(--gemini) 18%, var(--surface)); }
+  :global(.antigravity-bg) { background: color-mix(in srgb, var(--antigravity) 18%, var(--surface)); }
   :global(.deepseek-bg) { background: color-mix(in srgb, var(--deepseek) 18%, var(--surface)); }
   :global(.copilot-bg)  { background: color-mix(in srgb, var(--copilot) 18%, var(--surface)); }
   :global(.openai-bg)   { background: color-mix(in srgb, var(--openai) 18%, var(--surface)); }
@@ -1314,6 +1315,7 @@ import ServiceManager from '../components/ServiceManager.astro';
     const iconMap: Record<string, string> = {
       claude: '<img src="/icons/claude.svg" alt="" />',
       gemini: '<img src="/icons/gemini.svg" alt="" />',
+      antigravity: '<img src="/icons/antigravity.svg" alt="" />',
       deepseek: '<img src="/icons/deepseek.svg" alt="" />',
       copilot: '<img class="icon-light" src="/icons/copilot-black.svg" alt="" /><img class="icon-dark" src="/icons/copilot-white.svg" alt="" />',
       openai: '<img src="/icons/openai.svg" alt="" />',
@@ -1508,6 +1510,69 @@ import ServiceManager from '../components/ServiceManager.astro';
           html += listRow(limit.label ?? 'Limit', pct, limit.resets_at, '', limitWindowMs);
         }
       });
+      body.innerHTML = staleWarning + html;
+      setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
+
+    } else if (type === 'antigravity') {
+      const limits: any[] = Array.isArray(d.limits) && d.limits.length
+        ? d.limits
+        : (Array.isArray(d.groups)
+            ? d.groups.flatMap((g: any) =>
+                (Array.isArray(g.buckets) ? g.buckets : []).map((b: any) => ({
+                  ...b,
+                  group: g.id,
+                  group_name: g.name,
+                  label: `${g.name || g.id} · ${b.label || b.window || 'Quota'}`,
+                }))
+              )
+            : []);
+      let html = planRow(d.plan ? escapeHtml(String(d.plan)) : null);
+      const severities: any[] = [];
+      const windowMsFor = (win: string | undefined) => {
+        const w = String(win || '').toLowerCase();
+        if (w === '5h' || w === 'session') return 5 * 3600 * 1000;
+        if (w === 'weekly' || w === 'week') return 7 * 24 * 3600 * 1000;
+        return null;
+      };
+
+      if (limits.length) {
+        // Highlight the most constrained 5-hour pool as hero (or most constrained bucket overall).
+        const fiveHourIndices = limits
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => String(item.window || '').toLowerCase() === '5h');
+        const pool = fiveHourIndices.length ? fiveHourIndices : limits.map((item, idx) => ({ item, idx }));
+        let heroIdx = pool[0].idx;
+        let maxUsed = Number(pool[0].item.percent_used ?? -1);
+        for (const { item, idx } of pool.slice(1)) {
+          const used = Number(item.percent_used ?? -1);
+          if (used > maxUsed) {
+            maxUsed = used;
+            heroIdx = idx;
+          }
+        }
+
+        const hero = limits[heroIdx];
+        const heroPct = Number(hero.percent_used ?? 0);
+        const heroWindowMs = windowMsFor(hero.window);
+        severities.push(getUsageSeverity(heroPct, hero.resets_at ?? null, heroWindowMs));
+        html += heroBlock(
+          escapeHtml(String(hero.label ?? 'Quota')),
+          { utilization: heroPct, resets_at: hero.resets_at ?? null },
+          'Quota available',
+          heroWindowMs
+        );
+
+        limits.forEach((limit: any, idx: number) => {
+          if (idx === heroIdx) return;
+          const pct = Number(limit.percent_used ?? 0);
+          const winMs = windowMsFor(limit.window);
+          severities.push(getUsageSeverity(pct, limit.resets_at ?? null, winMs));
+          html += listRow(escapeHtml(String(limit.label ?? 'Quota')), pct, limit.resets_at ?? null, '', winMs);
+        });
+      }
+      if (d.email) {
+        html += `<hr class="divider">` + row('Account', escapeHtml(String(d.email)));
+      }
       body.innerHTML = staleWarning + html;
       setAccent(svcId, severities.length ? worstSeverity(severities) : 'ok');
 
@@ -2094,6 +2159,7 @@ import ServiceManager from '../components/ServiceManager.astro';
               <div class="provider-pill-stack">
                 <span class="provider-pill claude-bg"><img src="/icons/claude.svg" alt="Claude" width="16" height="16" /></span>
                 <span class="provider-pill gemini-bg"><img src="/icons/gemini.svg" alt="Gemini" width="16" height="16" /></span>
+                <span class="provider-pill antigravity-bg"><img src="/icons/antigravity.svg" alt="Antigravity" width="16" height="16" /></span>
                 <span class="provider-pill deepseek-bg"><img src="/icons/deepseek.svg" alt="DeepSeek" width="16" height="16" /></span>
                 <span class="provider-pill copilot-bg"><img src="/icons/copilot-white.svg" alt="Copilot" width="16" height="16" /></span>
                 <span class="provider-pill openai-bg"><img src="/icons/openai.svg" alt="OpenAI" width="16" height="16" /></span>

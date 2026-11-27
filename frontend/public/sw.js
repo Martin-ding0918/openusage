@@ -10,6 +10,7 @@ const STATIC_ASSETS = [
   '/fonts/InterVariable.woff2',
   '/icons/claude.svg',
   '/icons/gemini.svg',
+  '/icons/antigravity.svg',
   '/icons/deepseek.svg',
   '/icons/copilot-black.svg',
   '/icons/copilot-white.svg',
